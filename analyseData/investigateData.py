@@ -95,6 +95,32 @@ plt.title("Dminor / not Dminor notes transitions")
 plt.bar(["From Dminor to Dminor","From Dminor to not Dminor","From not Dminor to Dminor","From not Dminor to not Dminor"],[Dminor_to_Dminor,Dminor_to_NotDminor,NotDminor_to_Dminor,NotDminor_to_NotDminor])
 plt.show()
 
+
+#Difference notes of different voices:
+differences_counts = [0 for x in range(100)]
+
+for timepoint in range(len(mod12_notes[0])):
+
+    breaks = [notes[0][timepoint] == 0, notes[1][timepoint] == 0, notes[2][timepoint] == 0, notes[3][timepoint] == 0]
+
+    if not breaks[0] and not breaks[1]:
+        differences_counts[abs(notes[0][timepoint] - notes[1][timepoint])] +=1
+    if not breaks[0] and not breaks[2]:
+        differences_counts[abs(notes[0][timepoint] - notes[2][timepoint])] +=1
+    if not breaks[0] and not breaks[3]:
+        differences_counts[abs(notes[0][timepoint] - notes[3][timepoint])] +=1
+    if not breaks[1] and not breaks[2]:
+        differences_counts[abs(notes[1][timepoint] - notes[2][timepoint])] +=1
+    if not breaks[1] and not breaks[3]:
+        differences_counts[abs(notes[1][timepoint] - notes[3][timepoint])] +=1
+    if not breaks[2] and not breaks[3]:
+        differences_counts[abs(notes[2][timepoint] - notes[3][timepoint])] +=1
+
+plt.title("Counts of differences between voices at same time")
+plt.bar([str(x) for x in range(26)],differences_counts[:26])
+plt.show()
+
+
         
 
         
