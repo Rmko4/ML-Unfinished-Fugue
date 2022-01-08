@@ -1,5 +1,5 @@
 # %% [markdown]
-# Generating a wav file from the midi file
+# Generating a wav file from the midi tones file
 # %%
 import numpy as np
 import pandas as pd
