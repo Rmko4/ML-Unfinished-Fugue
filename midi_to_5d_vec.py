@@ -15,6 +15,7 @@ CIRCLE_FIVE = [1, 8, 3, 10, 5, 12, 7, 2, 9, 4, 11, 6]
 RADIUS_C5 = 1
 
 # The min and max MIDI values used in the training data
+# Used to set pitch values around zero.
 MIN_NOTE = 28
 MAX_NOTE = 76
 
@@ -63,6 +64,7 @@ def midi_to_5d_vec(midi_note: int) -> list:
     # the representation of pitch is scaled in such a way that a pitch
     # distance of 1 octave in the first dimension, is equal to the distance of
     # notes on the opposite sides on the chroma circle or the circle of fifths
+    # In addition the pitch is offset, such that zero alligns with the pitch inbetween min_p and max_p
     pitch = 2 * np.log2(fx) - max_p + (max_p - min_p)/2
 
     return [pitch, chroma_x, chroma_y, circle5_x, circle5_y]
