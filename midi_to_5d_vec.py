@@ -14,11 +14,12 @@ RADIUS_CHROMA = 1
 CIRCLE_FIVE = [1, 8, 3, 10, 5, 12, 7, 2, 9, 4, 11, 6]
 RADIUS_C5 = 1
 
-# @TODO: I just took the min and max midi values? Is that correct?
 # The min and max MIDI values used in the training data
-MIN_NOTE = 76
-MAX_NOTE = 28
+MIN_NOTE = 28
+MAX_NOTE = 76
 
+min_p = 2 * np.log2(2**((MIN_NOTE - 69)/12) * 440)
+max_p = 2 * np.log2(2**((MAX_NOTE - 69)/12) * 440)
 
 def get_chroma_coords(note):
     # find the angle in the chroma circle
@@ -47,7 +48,7 @@ def midi_to_5d_vec(midi_note: int) -> list:
     Takes in a MIDI value and returns the [pitch, chroma_x, chroma_y, circle5_x, circle5_y] as a list
     """
 
-    # Convert midi_note to an int [1,12]
+    # Convert midi_note to an int [0,11]
     # 55 is MIDI value of note G3
     note = (midi_note - 55) % 12
 
@@ -62,12 +63,10 @@ def midi_to_5d_vec(midi_note: int) -> list:
     # the representation of pitch is scaled in such a way that a pitch
     # distance of 1 octave in the first dimension, is equal to the distance of
     # notes on the opposite sides on the chroma circle or the circle of fifths
-    min_p = 2 * np.log2(2**((MIN_NOTE - 69)/12) * 440)
-    max_p = 2 * np.log2(2**((MAX_NOTE - 69)/12) * 440)
     pitch = 2 * np.log2(fx) - max_p + (max_p - min_p)/2
 
     return [pitch, chroma_x, chroma_y, circle5_x, circle5_y]
 
 
 if __name__ == '__main__':
-    midi_to_5d_vec()
+    midi_to_5d_vec(54)

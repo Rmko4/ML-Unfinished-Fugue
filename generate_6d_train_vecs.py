@@ -1,6 +1,7 @@
 from midi_to_5d_vec import midi_to_5d_vec
 import pandas as pd
 import numpy as np
+from pandas import DataFrame
 
 IGNORE_PAUSES = True
 IMPORT_FILE = 'F.txt'
