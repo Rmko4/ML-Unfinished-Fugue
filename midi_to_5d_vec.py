@@ -71,4 +71,5 @@ def midi_to_5d_vec(midi_note: int) -> list:
 
 
 if __name__ == '__main__':
-    midi_to_5d_vec(54)
+    # Test on value
+    print(midi_to_5d_vec(54))
