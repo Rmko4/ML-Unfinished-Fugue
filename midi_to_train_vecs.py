@@ -60,12 +60,12 @@ def get_teacher_vec(midi_value, duration) -> list:
         note_idx = 1 + midi_value - MIN_NOTE
         y[note_idx] = 1
     # Get the index of the duration relative to the teacher vector
-    # NOTE no plus one since a duration of 0 does not exist
+    # NOTE no plus
     duration_idx = NOTE_RANGE + duration
     y[duration_idx] = 1
     return y
 
 
 if __name__ == '__main__':
-    y = get_teacher_vec(4, 1)
+    y = get_teacher_vec(0, 23)
     print(y)
