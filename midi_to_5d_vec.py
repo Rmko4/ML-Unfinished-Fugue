@@ -15,8 +15,7 @@ CIRCLE_FIVE = [1, 8, 3, 10, 5, 12, 7, 2, 9, 4, 11, 6]
 RADIUS_C5 = 1
 
 # The min and max MIDI values used in the training data
-# Used to set pitch values around zero.
-MIN_NOTE = 28
+MIN_NOTE = 54
 MAX_NOTE = 76
 
 min_p = 2 * np.log2(2**((MIN_NOTE - 69)/12) * 440)
