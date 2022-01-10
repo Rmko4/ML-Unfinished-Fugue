@@ -16,8 +16,8 @@ RADIUS_C5 = 1
 
 # @TODO: I just took the min and max midi values? Is that correct?
 # The min and max MIDI values used in the training data
-MIN_NOTE = 76
-MAX_NOTE = 28
+MIN_NOTE = 54
+MAX_NOTE = 76
 
 
 def get_chroma_coords(note):
