@@ -4,7 +4,9 @@ import numpy as np
 import pandas as pd
 from pandas.core.frame import DataFrame
 
-MIDI_COMPACT = List[List[Tuple[int, float]]]
+MIDI_COMPACT_SC = List[Tuple[int, float]]
+MIDI_COMPACT = List[MIDI_COMPACT_SC]
+
 
 if __name__ == "__main__":
     FILENAME_F = "F.txt"  # Requires tab delimited csv
