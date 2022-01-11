@@ -3,11 +3,14 @@ import pandas as pd
 from midiutil import MIDIFile
 from pandas.core.frame import DataFrame
 
+from midi_duration import MIDI_COMPACT
+
 FILENAME_F = "F.txt"  # Requires tabbed delimited csv
 MODULATION = 8  # Key change
 TEMPO = 121  # BPM
 VOLUME = 100  # Max 127
 INSTRUMENTS = [2, 2, 2, 2]  # Should be integer [1, 128]
+SYMBOLS_PER_BEAT = 4
 # Now all bright acoustic piano.
 # Look on https://en.wikipedia.org/wiki/General_MIDI for an overview of programs.
 
@@ -54,6 +57,40 @@ def midi_tones_to_midi_file(midi_notes: np.ndarray, out_file="out.mid",
     with open(out_file, "wb") as output_file:
         midi.writeFile(output_file)
 
+def midi_compact_to_midi_file(midi_compact: MIDI_COMPACT, out_file="out.mid",
+                            symbols_per_beat=4, tempo=120, volume=100,
+                            modulation=0, instruments=None) -> None:
+    track = 0
+    # One track, defaults to format 1 (tempo track is created automatically)
+    midi = MIDIFile(1)
+    midi.addTempo(track, 0, tempo)
+
+    n_channels = len(midi_compact)
+ 
+    if instruments is None:
+        instruments = np.zeros((n_channels), dtype=int)
+    else:
+        instruments = np.array(instruments)
+        assert len(instruments) == n_channels
+        assert ((0 <= instruments) & (instruments < 128)).all()
+        instruments -= 1
+
+    for channel in range(n_channels):
+        # For different instrument
+        midi.addProgramChange(track, channel, 0, instruments[channel])
+        mc_sc = midi_compact[channel]
+
+        time = 0.
+        for note, duration in mc_sc:
+            beat_duration = duration / symbols_per_beat
+            if note != 0:
+                pitch = note + modulation
+                midi.addNote(track, channel, pitch, time, beat_duration, volume)
+            time += beat_duration
+
+    with open(out_file, "wb") as output_file:
+        midi.writeFile(output_file)
+
 
 def midi_tones_file_to_midi_file(in_file="F.txt", out_file="out.mid", **kwargs) -> None:
     frequencies: DataFrame = pd.read_csv(in_file, sep="\t", header=None)
@@ -63,4 +100,5 @@ def midi_tones_file_to_midi_file(in_file="F.txt", out_file="out.mid", **kwargs) 
 
 if __name__ == "__main__":
     midi_tones_file_to_midi_file(
-        FILENAME_F, tempo=TEMPO, volume=VOLUME, modulation=MODULATION, instruments=INSTRUMENTS)
+        FILENAME_F, tempo=TEMPO, volume=VOLUME, modulation=MODULATION,
+        instruments=INSTRUMENTS, symbols_per_beat=SYMBOLS_PER_BEAT)

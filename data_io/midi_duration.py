@@ -4,7 +4,8 @@ import numpy as np
 import pandas as pd
 from pandas.core.frame import DataFrame
 
-MIDI_COMPACT_SC = List[Tuple[int, float]]
+# List of tuples containing the midi tone and the duration in beats.
+MIDI_COMPACT_SC = List[Tuple[int, int]]
 MIDI_COMPACT = List[MIDI_COMPACT_SC]
 
 
@@ -13,7 +14,7 @@ if __name__ == "__main__":
     OMIT_REST = True
 
 
-def midi_tones_to_midi_compact(midi_notes: np.ndarray, omit_rest=True, modulation=0, symbols_per_beat=4) -> MIDI_COMPACT:
+def midi_tones_to_midi_compact(midi_notes: np.ndarray, omit_rest=True, modulation=0) -> MIDI_COMPACT:
     symbol_len = midi_notes.shape[0]
     n_channels = midi_notes.shape[1]
 
@@ -28,11 +29,11 @@ def midi_tones_to_midi_compact(midi_notes: np.ndarray, omit_rest=True, modulatio
         prev_midi = voice[0]
         start_idx = 0
         for idx in range(1, symbol_len):
-            midi_pitch = voice[idx]
+            midi_pitch = int(voice[idx])
             # Change to different tone
             if midi_pitch != prev_midi:
                 if not omit_rest or prev_midi != 0:
-                    duration = (idx - start_idx) / symbols_per_beat
+                    duration = (idx - start_idx)
                     pitch = prev_midi + modulation
                     compact_voice.append((pitch, duration))
                 prev_midi = midi_pitch
