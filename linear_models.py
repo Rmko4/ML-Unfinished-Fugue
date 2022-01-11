@@ -29,10 +29,10 @@ class LinearRegressionSC(LinearRegression):
     def predict_sequence(self, X: np.ndarray, duration=64) -> MIDI_COMPACT_SC:
         mc_pred_seq = []
         u = self.ive.transform(X)
-        duration = 0
-        while duration < N_NEW_SYMBOLS:
+        time = 0
+        while time < duration:
             # Create single window view
-            u_sw = sliding_window_view(u, WINDOW_LENGTH, axis=0)
+            u_sw = sliding_window_view(u, len(X), axis=0)
             u_sw = u_sw.reshape(u_sw.shape[0], -1)
 
             # Raw output
@@ -49,7 +49,7 @@ class LinearRegressionSC(LinearRegression):
             u = np.concatenate((u[1:], new_u))
 
             # Update total duration with new note
-            duration += mc_pred[1]
+            time += mc_pred[1]
 
         return mc_pred_seq
 
@@ -69,7 +69,7 @@ def apply_linear_regression():
     lreg.fit(u, y)
     print(lreg.score(u, y))
 
-    predicted_sequence = lreg.predict_sequence(in_d[-10:])
+    predicted_sequence = lreg.predict_sequence(in_d[-10:], duration=N_NEW_SYMBOLS)
 
     full_sequence = in_d.copy()
     full_sequence.extend(predicted_sequence)
