@@ -116,12 +116,11 @@ for timepoint in range(len(mod12_notes[0])):
     if not breaks[2] and not breaks[3]:
         differences_counts[abs(notes[2][timepoint] - notes[3][timepoint])] +=1
 
+
+
 plt.title("Counts of differences between voices at same time")
-plt.bar([str(x) for x in range(26)],differences_counts[:26])
+plt.bar([str(x) for x in range(38)],differences_counts[:38])
 plt.show()
-
-
-        
 
         
 
