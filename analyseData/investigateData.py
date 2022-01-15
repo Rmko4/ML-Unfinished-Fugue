@@ -1,10 +1,11 @@
 import matplotlib.pyplot as plt
 import pandas as pd
+import sys
 
 notes = [[],[],[],[]]
 mod12_notes = [[],[],[],[]]
 
-f = open("data.txt", "r")
+f = open( sys.argv[1], "r")
 lines = f.read()
 lines = lines.split("\n")
 for i,line in enumerate(lines):
@@ -20,7 +21,8 @@ for i in range(len(lines)):
 
 f.close()
 
-labels = ["C","D_b","D","E_b","E","F", "G_b","G","A_b","A","B_b","B"]
+
+labels = [ 'C',"D_b","D","E_b","E","F", "G_b","G","A_b","A","B_b","B"]
 
 allInOne = [x for x in  [*mod12_notes[0], *mod12_notes[1],*mod12_notes[2],*mod12_notes[3]]]
 
