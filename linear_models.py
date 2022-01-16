@@ -1,12 +1,12 @@
 from sklearn.linear_model import LinearRegression
 from data_io.midi_duration import MIDI_COMPACT_SC, midi_tones_file_to_midi_compact
 from data_io.midi_file import MODULATION, TEMPO, midi_compact_to_midi_file
-from data_io.model_data import convert_to_training_data
+from data_io.model_data import convert_midi_compact_sc_to_training_data
 from scipy.special import softmax
 from numpy.lib.stride_tricks import sliding_window_view
 import numpy as np
 
-from data_io.vector_encoders import InputVectorEncoder, TeacherVectorEncoder
+from data_io.vector_encoders import InputVectorEncoderSC, TeacherVectorEncoderSC
 
 
 if __name__ == "__main__":
@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
 
 class LinearRegressionSC(LinearRegression):
-    def __init__(self, tve: TeacherVectorEncoder, ive: InputVectorEncoder,
+    def __init__(self, tve: TeacherVectorEncoderSC, ive: InputVectorEncoderSC,
                  fit_intercept=True, normalize=False,
                  copy_X=True, n_jobs=None, positive=False) -> None:
         super().__init__(fit_intercept=fit_intercept, normalize=normalize,
@@ -59,7 +59,7 @@ def apply_linear_regression():
         FILENAME_F, omit_rest=OMIT_REST)
     # Only use channel CHANNEL; Last measure is omitted as this one is incomplete
     in_d = midi_compact[CHANNEL][:-16]
-    train, val, tve, ive = convert_to_training_data(
+    train, val, tve, ive = convert_midi_compact_sc_to_training_data(
         in_d, validation_split=0, window_length=WINDOW_LENGTH)
 
     u, y = train
