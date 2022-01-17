@@ -15,8 +15,8 @@ class TeacherVectorEncoder:
 
         # Notes in [self.note_min, self.note_max]
         self.note_range = self.note_max - self.note_min + 1
+        self.encoder_len = self.note_range + 1
 
-        self._encoder_len = self.note_range + 1
         self._playing_idx = 0
         self._notes_idx = 1
 
@@ -25,7 +25,7 @@ class TeacherVectorEncoder:
         teacher_vector = []
 
         for channel in range(self.n_channels):
-            y = np.zeros((self._encoder_len[channel]))
+            y = np.zeros((self.encoder_len[channel]))
             midi_note = midi_notes[channel]
 
             if midi_note == 0:
@@ -84,8 +84,7 @@ class InputVectorEncoder():
         self.note_min = midi_notes_masked.min(axis=0)
         self.note_max = midi_notes_masked.max(axis=0)
 
-        # Notes in [self.note_min, self.note_max]
-        self.note_range = self.note_max - self.note_min + 1
+        self.encoder_len = self.n_channels * 5
 
         min_p = 2 * np.log2(2**((self.note_min - 69)/12) * 440)
         max_p = 2 * np.log2(2**((self.note_max - 69)/12) * 440)
