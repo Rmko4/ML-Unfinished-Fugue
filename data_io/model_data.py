@@ -4,10 +4,9 @@ import numpy as np
 import pandas as pd
 from numpy.lib.stride_tricks import sliding_window_view
 from pandas import DataFrame
+from data_io.vector_encoders import *
 
 from midi_duration import MIDI_COMPACT_SC, midi_tones_file_to_midi_compact
-from vector_encoders import (InputVectorEncoder, InputVectorEncoderSC,
-                             TeacherVectorEncoder, TeacherVectorEncoderSC)
 
 if __name__ == "__main__":
     FILENAME_F = "F.txt"  # Requires tab delimited csv
@@ -16,17 +15,17 @@ if __name__ == "__main__":
 
 
 def convert_midi_compact_sc_to_training_data(midi_compact: MIDI_COMPACT_SC, window_length=10,
-                                             validation_split=0.0) -> Tuple[np.ndarray, np.ndarray, TeacherVectorEncoderSC, InputVectorEncoderSC]:
+                                             validation_split=0.0) -> Tuple[np.ndarray, np.ndarray, OutputVectorEncoderSC, InputVectorEncoderSC]:
 
     if validation_split >= 1.0 or validation_split < 0.0:
         raise ValueError(
             f"validation_split should be in range [0.0, 1.0), but is {validation_split}")
 
-    tve = TeacherVectorEncoderSC(midi_compact)
+    ove = OutputVectorEncoderSC(midi_compact)
     ive = InputVectorEncoderSC(midi_compact)
 
     def _encode(X: MIDI_COMPACT_SC):
-        y = tve.transform(X)
+        y = ove.transform(X)
         u = ive.transform(X)
 
         # Generates sliding windows view, with last window omitted, as this contains the last y.
@@ -53,7 +52,7 @@ def convert_midi_compact_sc_to_training_data(midi_compact: MIDI_COMPACT_SC, wind
     else:
         val = _encode(val_raw)
 
-    return train, val, tve, ive
+    return train, val, ove, ive
 
 
 """ Returns ndarray with the first dimension for the time and the second dimension
@@ -68,14 +67,14 @@ def load_data_raw(file="F.txt") -> np.ndarray:
 
 
 def convert_raw_to_training_data(midi_raw: np.ndarray, window_length=48,
-                                 flatten_output=False) -> Tuple[np.ndarray, TeacherVectorEncoderSC, InputVectorEncoderSC]:
+                                 flatten_output=False) -> Tuple[np.ndarray, OutputVectorEncoderMC, InputVectorEncoderMC]:
 
-    tve = TeacherVectorEncoder(midi_raw)
-    ive = InputVectorEncoder(midi_raw)
+    ove = OutputVectorEncoderMC(midi_raw, flatten_output)
+    ive = InputVectorEncoderMC(midi_raw, True)
 
     def _encode(X: MIDI_COMPACT_SC):
-        y = tve.transform(X, flatten_output)
-        u = ive.transform(X, True)
+        y = ove.transform(X)
+        u = ive.transform(X)
 
         # Generates sliding windows view, with last window omitted, as this contains the last y.
         u_sw = sliding_window_view(u, window_length, axis=0)[:-1]
@@ -92,7 +91,7 @@ def convert_raw_to_training_data(midi_raw: np.ndarray, window_length=48,
 
     train = _encode(midi_raw)
 
-    return train, tve, ive
+    return train, ove, ive
 
 
 if __name__ == "__main__":
@@ -100,7 +99,7 @@ if __name__ == "__main__":
         FILENAME_F, omit_rest=OMIT_REST)
     # Only use channel CHANNEL; Last measure is omitted as this one is incomplete
     in_d = midi_compact[CHANNEL][:-16]
-    train, val, tve, ive = convert_midi_compact_sc_to_training_data(
+    train, val, ove, ive = convert_midi_compact_sc_to_training_data(
         in_d, validation_split=.2)
 
     in_d_raw = load_data_raw(FILENAME_F)[:, :]

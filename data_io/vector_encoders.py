@@ -5,9 +5,10 @@ from music_utils.music_circle import get_chroma_coords, get_circle5_coords
 from midi_duration import MIDI_COMPACT_SC
 
 
-class TeacherVectorEncoder:
-    def __init__(self, midi_raw: np.ndarray):
+class OutputVectorEncoderMC:
+    def __init__(self, midi_raw: np.ndarray, flatten=True):
         self.n_channels = midi_raw.shape[1]
+        self.flatten = flatten
 
         midi_notes_masked = np.ma.masked_equal(midi_raw, 0)
         self.note_min = midi_notes_masked.min(axis=0)
@@ -19,10 +20,10 @@ class TeacherVectorEncoder:
 
         self._playing_idx = 0
         self._notes_idx = 1
+        self._idx_slice = np.cumsum(np.concatenate(([0], self.encoder_len)))
 
-    def get_teacher_vector(self, midi_notes: np.ndarray,
-                           flatten=True) -> Union[List[np.ndarray], np.ndarray]:
-        teacher_vector = []
+    def get_teacher_vector(self, midi_notes: np.ndarray) -> Union[List[np.ndarray], np.ndarray]:
+        output_vector = []
 
         for channel in range(self.n_channels):
             y = np.zeros((self.encoder_len[channel]))
@@ -33,20 +34,20 @@ class TeacherVectorEncoder:
             else:
                 note_idx = self._notes_idx + midi_note - self.note_min[channel]
                 y[note_idx] = 1
-            teacher_vector.append(y)
+            output_vector.append(y)
 
-        if flatten:
-            return np.concatenate(teacher_vector)
+        if self.flatten:
+            return np.concatenate(output_vector)
         else:
-            return teacher_vector
+            return output_vector
 
-    def transform(self, freq_raw: np.ndarray, flatten=True) -> np.ndarray:
+    def transform(self, freq_raw: np.ndarray) -> np.ndarray:
         y = []
         for x in freq_raw:
-            teacher_vec = self.get_teacher_vector(x, flatten)
-            y.append(teacher_vec)
+            output_vector = self.get_teacher_vector(x)
+            y.append(output_vector)
 
-        if flatten:
+        if self.flatten:
             return np.array(y)
         else:
             y_conv = []
@@ -56,29 +57,29 @@ class TeacherVectorEncoder:
 
             return y_conv
 
-    # def get_playing_prob(self, X: np.ndarray) -> np.ndarray:
-    #     return X[:, self._playing_idx]
+    def output_vector_channel(self, X: np.ndarray, channel: int) -> np.ndarray:
+        return X[:, self._idx_slice[channel]:self._idx_slice[channel + 1]]
 
-    # def get_notes_prob(self, X: np.ndarray) -> np.ndarray:
-    #     return X[:, self._notes_idx:self._durations_idx]
+    def inv_transform_maximum_likelihood(self, X: np.ndarray) -> np.ndarray:
+        midi_notes = []
+        for channel in range(self.n_channels):
+            if self.flatten:
+                output_vector = self.output_vector_channel(X, channel)
+            else:
+                output_vector = X[channel]
+            idx = output_vector.argmax(axis=1)
+            idx_masked = np.ma.masked_equal(idx, 0)
+            midi_note = self.note_min[channel] + idx_masked - self._notes_idx
+            midi_note = np.ma.filled(midi_note, 0)
+            midi_notes.append(midi_note)
 
-    # def get_durations_prob(self, X: np.ndarray) -> np.ndarray:
-    #     return X[:, self._durations_idx:]
-
-    # def inv_transform_maximum_likelihood(self, X: np.ndarray) -> np.ndarray:
-    #     # Ignores playing probability (for now)
-    #     notes_prob = self.get_notes_prob(X)
-    #     durations_prob = self.get_durations_prob(X)
-    #     notes = notes_prob.argmax(axis=1) + self.note_min
-    #     durations = durations_prob.argmax(axis=1) + self.duration_min
-    #     mc_ndarr = np.column_stack((notes, durations))
-    #     # For MIDI_COMPACT_SC: list(map(tuple, mc_ndarr))
-    #     return mc_ndarr
+        return np.array(midi_notes).T
 
 
-class InputVectorEncoder():
-    def __init__(self, midi_raw: np.ndarray):   
+class InputVectorEncoderMC():
+    def __init__(self, midi_raw: np.ndarray, flatten=True):
         self.n_channels = midi_raw.shape[1]
+        self.flatten = flatten
 
         midi_notes_masked = np.ma.masked_equal(midi_raw, 0)
         self.note_min = midi_notes_masked.min(axis=0)
@@ -91,7 +92,7 @@ class InputVectorEncoder():
 
         self._pitch_offset = (max_p - min_p)/2 - max_p
 
-    def get_input_vector(self, midi_notes: int, flatten=True) -> np.ndarray:
+    def get_input_vector(self, midi_notes: int) -> np.ndarray:
         """
         Takes in a MIDI value and duration and returns the
         [pitch, chroma_x, chroma_y, circle5_x, circle5_y, log_duration] as a ndarray
@@ -103,36 +104,42 @@ class InputVectorEncoder():
             # 55 is MIDI value of note G3
             midi_note = midi_notes[channel]
 
-            note = (midi_note - 55) % 12
+            if midi_note == 0:
+                rest_vec = np.zeros((6))
+                rest_vec[0] = 1
+                input_vector.append(rest_vec)
+            else:
+                note = (midi_note - 55) % 12
 
-            chroma_x, chroma_y = get_chroma_coords(note)
-            circle5_x, circle5_y = get_circle5_coords(note)
+                chroma_x, chroma_y = get_chroma_coords(note)
+                circle5_x, circle5_y = get_circle5_coords(note)
 
-            # d is the distance (in semitones) of midi_note from A4 (69 in MIDI),
-            # whose frequency is 440 Hz. fx is the frequency of the note
-            d = midi_note - 69
-            fx = 2**(d/12) * 440
+                # d is the distance (in semitones) of midi_note from A4 (69 in MIDI),
+                # whose frequency is 440 Hz. fx is the frequency of the note
+                d = midi_note - 69
+                fx = 2**(d/12) * 440
 
-            # the representation of pitch is scaled in such a way that a pitch
-            # distance of 1 octave in the first dimension, is equal to the distance of
-            # notes on the opposite sides on the chroma circle or the circle of fifths
-            # In addition the pitch is offset, such that zero alligns with the pitch inbetween min_p and max_p
-            pitch = 2 * np.log2(fx) + self._pitch_offset[channel]
+                # the representation of pitch is scaled in such a way that a pitch
+                # distance of 1 octave in the first dimension, is equal to the distance of
+                # notes on the opposite sides on the chroma circle or the circle of fifths
+                # In addition the pitch is offset, such that zero alligns with the pitch inbetween min_p and max_p
+                pitch = 2 * np.log2(fx) + self._pitch_offset[channel]
 
-            input_vector.append(np.array([pitch, chroma_x, chroma_y, circle5_x, circle5_y]))
+                input_vector.append(
+                    np.array([0, pitch, chroma_x, chroma_y, circle5_x, circle5_y]))
 
-        if flatten:
+        if self.flatten:
             return np.concatenate(input_vector)
         else:
             return input_vector
 
-    def transform(self, freq_raw: np.ndarray, flatten=True) -> np.ndarray:
+    def transform(self, freq_raw: np.ndarray) -> np.ndarray:
         y = []
         for x in freq_raw:
-            teacher_vec = self.get_input_vector(x, flatten)
+            teacher_vec = self.get_input_vector(x)
             y.append(teacher_vec)
 
-        if flatten:
+        if self.flatten:
             return np.array(y)
         else:
             y_conv = []
@@ -143,7 +150,7 @@ class InputVectorEncoder():
             return y_conv
 
 
-class TeacherVectorEncoderSC:
+class OutputVectorEncoderSC:
     def __init__(self, midi_compact: MIDI_COMPACT_SC) -> None:
         mc_ndarr = np.array(midi_compact)
 
@@ -230,6 +237,7 @@ class InputVectorEncoderSC():
         """
         Takes in a MIDI value and duration and returns the
         [pitch, chroma_x, chroma_y, circle5_x, circle5_y, log_duration] as a ndarray
+        Assumes no midi_note to be zero representing rest.
         """
 
         # Convert midi_note to an int [0,11]

@@ -7,9 +7,9 @@ from sklearn.linear_model import LinearRegression
 from data_io.midi_file import MODULATION, TEMPO, midi_compact_to_midi_file
 from data_io.model_data import (convert_midi_compact_sc_to_training_data,
                                 convert_raw_to_training_data, load_data_raw)
-from data_io.vector_encoders import (InputVectorEncoder, InputVectorEncoderSC,
-                                     TeacherVectorEncoder,
-                                     TeacherVectorEncoderSC)
+from data_io.vector_encoders import (InputVectorEncoderMC, InputVectorEncoderSC,
+                                     OutputVectorEncoderMC,
+                                     OutputVectorEncoderSC)
 
 if __name__ == "__main__":
     FILENAME_F = "F.txt"  # Requires tab delimited csv
@@ -34,49 +34,11 @@ class MetricPrintCallback(keras.callbacks.Callback):
     def on_epoch_begin(self, epoch, logs=None):
         print('-'*50)
 
-
-class LinearRegressionSC(LinearRegression):
-    def __init__(self, tve: TeacherVectorEncoderSC, ive: InputVectorEncoderSC,
-                 fit_intercept=True, normalize=False,
-                 copy_X=True, n_jobs=None, positive=False) -> None:
-        super().__init__(fit_intercept=fit_intercept, normalize=normalize,
-                         copy_X=copy_X, n_jobs=n_jobs, positive=positive)
-        self.tve = tve
-        self.ive = ive
-
-    def predict_sequence(self, X: np.ndarray, duration=64):
-        mc_pred_seq = []
-        u = self.ive.transform(X)
-        time = 0
-        while time < duration:
-            # Create single window view
-            u_sw = sliding_window_view(u, len(X), axis=0)
-            u_sw = u_sw.reshape(u_sw.shape[0], -1)
-
-            # Raw output
-            y_pred = self.predict(u_sw)
-            # Select note and duration on maximum likelihood
-            out = self.tve.inv_transform_maximum_likelihood(y_pred)
-            mc_pred = (int(out[0][0]), int(out[0][1]))
-
-            # Add the prediction to the sequence
-            mc_pred_seq.append(mc_pred)
-
-            # Update window with new prediction
-            new_u = self.ive.transform(out)
-            u = np.concatenate((u[1:], new_u))
-
-            # Update total duration with new note
-            time += mc_pred[1]
-
-        return mc_pred_seq
-
-
 class MultiLayerPerceptronMC(keras.Model):
-    def __init__(self, hidden_units, tve: TeacherVectorEncoder,
-                 ive: InputVectorEncoder, **kwargs):
+    def __init__(self, hidden_units, ove: OutputVectorEncoderMC,
+                 ive: InputVectorEncoderMC, **kwargs):
         super().__init__(**kwargs)
-        self.tve = tve
+        self.ove = ove
         self.ive = ive
 
         self.hidden_0 = keras.layers.Dense(
@@ -85,9 +47,9 @@ class MultiLayerPerceptronMC(keras.Model):
             name='hidden')
 
         self.outputs = []
-        for channel in range(self.tve.n_channels):
+        for channel in range(self.ove.n_channels):
             output_layer = keras.layers.Dense(
-                self.tve.encoder_len[channel],
+                self.ove.encoder_len[channel],
                 activation='softmax',
                 name=f'output_{channel}')
             self.outputs.append(output_layer)
@@ -95,7 +57,7 @@ class MultiLayerPerceptronMC(keras.Model):
     def call(self, inputs):
         x = self.hidden_0(inputs)
         y_pred = []
-        for channel in range(self.tve.n_channels):
+        for channel in range(self.ove.n_channels):
             out = self.outputs[channel](x)
             y_pred.append(out)
 
@@ -116,16 +78,15 @@ class MultiLayerPerceptronMC(keras.Model):
 
         raise NotImplementedError()
 
-def apply_mlp():
+def apply_mlp_MC():
     midi_raw = load_data_raw(FILENAME_F)[:, :]
-    # Only use channel CHANNEL; Last measure is omitted as this one is incomplete
-    train, tve, ive = convert_raw_to_training_data(
+    train, ove, ive = convert_raw_to_training_data(
         midi_raw, flatten_output=False)
 
     # Output should NOT be flattened for mlp.
     u, y = train
 
-    mlp = MultiLayerPerceptronMC(32, tve, ive)
+    mlp = MultiLayerPerceptronMC(32, ove, ive)
     mlp.compile(optimizer='adam')
 
     callbacks = [keras.callbacks.EarlyStopping(patience=3)]
@@ -142,4 +103,4 @@ def apply_mlp():
 
 
 if __name__ == "__main__":
-    apply_mlp()
+    apply_mlp_MC()
