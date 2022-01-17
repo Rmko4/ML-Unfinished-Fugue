@@ -5,6 +5,8 @@ from data_io.model_data import convert_midi_compact_sc_to_training_data
 from scipy.special import softmax
 from numpy.lib.stride_tricks import sliding_window_view
 import numpy as np
+from sklearn.model_selection import train_test_split
+
 
 from data_io.vector_encoders import InputVectorEncoderSC, TeacherVectorEncoderSC
 
@@ -59,10 +61,12 @@ def apply_linear_regression():
         FILENAME_F, omit_rest=OMIT_REST)
     # Only use channel CHANNEL; Last measure is omitted as this one is incomplete
     in_d = midi_compact[CHANNEL][:-16]
-    train, val, tve, ive = convert_midi_compact_sc_to_training_data(
-        in_d, validation_split=0, window_length=WINDOW_LENGTH)
+    data, _, tve, ive = convert_midi_compact_sc_to_training_data(
+        in_d, validation_split=0.1, window_length=WINDOW_LENGTH)
 
-    u, y = train
+    u, y = data
+
+    train, val = train_test_split(u, y, test_size=0.2)
 
     lreg = LinearRegressionSC(tve, ive)
 

@@ -27,7 +27,7 @@ def midi_tones_to_midi_file(midi_notes: np.ndarray, out_file="out.mid",
     n_channels = midi_notes.shape[1]
 
     if instruments is None:
-        instruments = np.zeros((n_channels))
+        instruments = np.zeros((n_channels), dtype=int)
     else:
         instruments = np.array(instruments)
         assert len(instruments) == n_channels

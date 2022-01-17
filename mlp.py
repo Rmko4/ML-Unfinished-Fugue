@@ -111,6 +111,10 @@ class MultiLayerPerceptronMC(keras.Model):
         callbacks.append([MetricPrintCallback()])
         return super().fit(x, y, batch_size, epochs, verbose, callbacks, validation_split, **kwargs)
 
+    def predict_sequence(self, X: np.ndarray, steps=64):
+        pred_seq = []
+
+        raise NotImplementedError()
 
 def apply_mlp():
     midi_raw = load_data_raw(FILENAME_F)[:, :]
