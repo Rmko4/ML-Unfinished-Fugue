@@ -75,11 +75,11 @@ def apply_linear_regression():
     full_sequence.extend(predicted_sequence)
     midi_compact_fs = [full_sequence]
 
-    midi_compact_to_midi_file(midi_compact_fs, "pred.mid", tempo=TEMPO, modulation=MODULATION)
+    midi_compact_to_midi_file(
+        midi_compact_fs, "pred.mid", tempo=TEMPO, modulation=MODULATION)
 
     # Might one to apply something like softmax.
     # However, it is not trained on this softmax so it is not really going to represent the probability.
-
 
 
 if __name__ == "__main__":

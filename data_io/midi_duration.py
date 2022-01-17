@@ -15,6 +15,9 @@ if __name__ == "__main__":
 
 
 def midi_tones_to_midi_compact(midi_notes: np.ndarray, omit_rest=True, modulation=0) -> MIDI_COMPACT:
+    """
+    Converts sequence of midi values to compact representation (midi value, duration)
+    """
     symbol_len = midi_notes.shape[0]
     n_channels = midi_notes.shape[1]
 
