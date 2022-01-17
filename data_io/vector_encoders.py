@@ -97,6 +97,7 @@ class InputVectorEncoder():
         [pitch, chroma_x, chroma_y, circle5_x, circle5_y, log_duration] as a ndarray
         """
         input_vector = []
+        # TODO: What if zero midi
         for channel in range(self.n_channels):
             # Convert midi_note to an int [0,11]
             # 55 is MIDI value of note G3
