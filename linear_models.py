@@ -6,7 +6,7 @@ from scipy.special import softmax
 from numpy.lib.stride_tricks import sliding_window_view
 import numpy as np
 from sklearn.model_selection import train_test_split
-
+import pandas as pd
 
 from data_io.vector_encoders import InputVectorEncoderSC, TeacherVectorEncoderSC
 
@@ -66,12 +66,17 @@ def apply_linear_regression():
 
     u, y = data
 
-    train, val = train_test_split(u, y, test_size=0.2)
+    train_u, val_u, train_y, val_y = train_test_split(u, y, test_size=0.2)
 
     lreg = LinearRegressionSC(tve, ive)
 
-    lreg.fit(u, y)
-    print(lreg.score(u, y))
+    lreg.fit(train_u, train_y)
+    print(lreg.score(val_u, val_y))
+
+    pred_val_y = lreg.predict(val_u)
+
+    pd.DataFrame(pred_val_y).to_csv("postprocessing/probabilities.csv", header=None, index=None)
+    read = pd.read_csv("postprocessing/probabilities.csv", header=None).to_numpy()
 
     predicted_sequence = lreg.predict_sequence(in_d[-10:], duration=N_NEW_SYMBOLS)
 
