@@ -1,3 +1,4 @@
+from pathlib import Path
 import numpy as np
 import pandas as pd
 from numpy.lib.stride_tricks import sliding_window_view
@@ -13,8 +14,11 @@ from data_io.vector_encoders import (InputVectorEncoderMC,
                                      OutputVectorEncoderMC,
                                      OutputVectorEncoderSC)
 
+from sklearn import metrics
+
 if __name__ == "__main__":
     FILENAME_F = "F.txt"  # Requires tab delimited csv
+    OUTPUT_PATH = Path("output_midi_files")
     OMIT_REST = True
     CHANNEL = 0
     WINDOW_LENGTH_SC = 10
@@ -68,11 +72,11 @@ class LinearRegressionMC(LinearRegression):
         self.ove = ove
         self.ive = ive
 
-    def predict_sequence(self, X: np.ndarray, duration=64) -> np.ndarray:
+    def predict_sequence(self, X: np.ndarray, steps=64) -> np.ndarray:
         mc_pred_seq = []
         u = self.ive.transform(X)
 
-        for _ in range(duration):
+        for _ in range(steps):
             # Create single window view
             u_sw = sliding_window_view(u, len(X), axis=0)
             u_sw = u_sw.reshape(u_sw.shape[0], -1)
@@ -123,11 +127,9 @@ def apply_linear_regression_SC():
     full_sequence.extend(predicted_sequence)
     midi_compact_fs = [full_sequence]
 
+    output_file = OUTPUT_PATH / "pred.mid"
     midi_compact_to_midi_file(
-        midi_compact_fs, "pred.mid", tempo=TEMPO, modulation=MODULATION)
-
-    # Might one to apply something like softmax.
-    # However, it is not trained on this softmax so it is not really going to represent the probability.
+        midi_compact_fs, str(output_file), tempo=TEMPO, modulation=MODULATION)
 
 
 def apply_linear_regression_MC():
@@ -153,14 +155,11 @@ def apply_linear_regression_MC():
     #                    header=None).to_numpy()
 
     predicted_sequence = lreg.predict_sequence(
-        midi_raw[-WINDOW_LENGTH_MC:], duration=N_NEW_SYMBOLS)
+        midi_raw[-WINDOW_LENGTH_MC:], steps=N_NEW_SYMBOLS)
 
     full_sequence = np.concatenate((midi_raw, predicted_sequence), axis=0)
-    midi_tones_to_midi_file(predicted_sequence, "pred_2.mid",
+    midi_tones_to_midi_file(predicted_sequence, "pred_lr_mc.mid",
                             tempo=TEMPO, modulation=MODULATION)
-
-    # Might one to apply something like softmax.
-    # However, it is not trained on this softmax so it is not really going to represent the probability.
 
 
 if __name__ == "__main__":
