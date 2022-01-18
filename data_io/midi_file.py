@@ -27,7 +27,7 @@ def midi_tones_to_midi_file(midi_notes: np.ndarray, out_file="out.mid",
     n_channels = midi_notes.shape[1]
 
     if instruments is None:
-        instruments = np.zeros((n_channels))
+        instruments = np.zeros((n_channels), dtype=int)
     else:
         instruments = np.array(instruments)
         assert len(instruments) == n_channels
@@ -44,7 +44,7 @@ def midi_tones_to_midi_file(midi_notes: np.ndarray, out_file="out.mid",
         for idx in range(1, symbol_len):
             midi_pitch = voice[idx]
             # Change to different tone
-            if midi_pitch != prev_midi:
+            if midi_pitch != prev_midi or idx == symbol_len - 1:
                 if prev_midi != 0:
                     duration = (idx - start_idx) / symbols_per_beat
                     time = start_idx / symbols_per_beat

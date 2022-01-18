@@ -1,11 +1,12 @@
 import numpy as np
+from datetime import datetime
 
 
 class ESN():
 
     def __init__(self, n_inputs, n_outputs, reservoir_size=200,
                  leaking_rate=1.0, spectral_radius=1.0, washout_time=0,
-                 noise=0,
+                 starting_state='zeros', noise=0,
                  ridge_param=0, W_in_scaling=1.0, W_scaling=1.0,
                  W_fb_scaling=1.0, bias_scaling=1.0, activation_func='tanh',
                  random_state=None, silent=True):
@@ -17,6 +18,7 @@ class ESN():
             leaking_rate: The speed of the reservoir update dynamics discretized in time
             spectral_radius: spectral radius of the recurrent weight matrix
             washout_time: First N state vectors x that need to be discared during training
+            starting_state: start internal state with random vector or zero vector (zeros/random)
             noise: noise added to each neuron (regularization)
             ridge_param: Regularization strength of the ridge regression
             W_in_scaling: Scaling of the Input wight matrix (single scalar)
@@ -34,6 +36,7 @@ class ESN():
         self.spectral_radius = spectral_radius
         self.washout_time = washout_time
         self.leaking_rate = leaking_rate
+        self.starting_state = starting_state
         self.noise = noise
         self.ridge_param = ridge_param
         self.W_in_scaling = W_in_scaling
@@ -57,7 +60,7 @@ class ESN():
 
     def _init_weights(self):
         """
-        Method to initialize the weight matrices W_in, W, W_fb, and vector b
+        Method to initialize the weight matrices W_in, W, W_fb, vector b, and internal stat vector x
         All tensors entries are sampled from the uniform distribution [-0.5, 0.5]
         Scale them by requested amount
 
@@ -77,6 +80,11 @@ class ESN():
         self.W_fb = self.random_state_.rand(self.reservoir_size, self.n_outputs) - 0.5
         self.bias = self.random_state_.rand(self.reservoir_size) - 0.5
 
+        if self.starting_state == 'zeros':
+            self.x = np.zeros(self.reservoir_size)
+        else:
+            self.x = self.random_state_.rand(self.reservoir_size) - 0.5
+
         # Scale all tensors
         self.W_in *= self.W_in_scaling
         self.W *= self.W_scaling
@@ -91,22 +99,19 @@ class ESN():
             x = np.tanh(x)
         return x
 
-    def _update(self, x, u, y):
+    def _update(self, u, y):
         """ 
-        Method to perform update step
+        Method to perform update step and sets self.x to self.x = x(n+1)
         Args:
-            state x(n)
             input u(n+1)
             output y(n)
-        Returns:
-            state x(n+1)
         Network is governed by update equation:
         x(n+1) = (1-leaking_rate)x(n) + leaking_rate*f(W_in*u(n+1) + W*x(n) + W_fb*y(n) + bias)
         """
-        pre_x = np.dot(self.W_in, u) + np.dot(self.W, x) + np.dot(self.W_fb, y) + bias
+        pre_x = np.dot(self.W_in, u) + np.dot(self.W, self.x) + np.dot(self.W_fb, y) + self.bias
         pre_x = self.leaking_rate * self._activation_function(pre_x)
-        new_x = (1 - self.leaking_rate)*x + pre_x
-        return new_x
+        new_x = (1 - self.leaking_rate)*self.x + pre_x
+        self.x = new_x
 
     def _harvest_states(self, u_train, y_teacher):
         """
@@ -123,16 +128,16 @@ class ESN():
 
         # Harvest states by driving the network with the given input/output pairs
         # Drive the network once where y[n-1] does no exists
-        x = np.zeros(self.reservoir_size)
         u = u_train[0, :]
         y = np.zeros(self.n_outputs)
-        states[0, :] = self._update(x, u, y)
+        self._update(u, y)
+        states[0, :] = self.x
 
         for n in range(1, n_train_samples):
-            x = states[n-1, :]
             u = u_train[n, :]
             y = y_teacher[n-1, :]
-            states[n, :] = self._update(x, u, y)
+            self._update(u, y)
+            states[n, :] = self.x
         return states
 
     def _ridge_regression(self, X, D):  # @TODO does this need padding with const 1?
@@ -145,11 +150,12 @@ class ESN():
         Returns:
             Optimal weight matrix W_out of dimensions: n_outputs x reservoir_size
         """
-        n = X.size[1]
+        n = X.shape[1]
         R = np.dot(X.T, X)
         P = np.dot(X.T, D)
-        W_out = np.dot(np.inverse(R + (self.ridge_param**2)*np.identity(n)), P)
-        return W_out
+        W_out = np.dot(np.linalg.inv(R + (self.ridge_param**2)*np.identity(n)), P)
+        # transpose matrix to fit dimensions n_outputs x reservoir_size
+        return W_out.T
 
     def _compute_mse(self, X, y):
         """
@@ -163,20 +169,31 @@ class ESN():
         predictions = np.dot(X, self.W_out.T)
         return np.sqrt(np.mean((predictions - y)**2))
 
-    def fit(self, u_train, y_teacher, save_states=False, inspect=False):
+    def _save_states(self, states):
+        """
+        Method to save numpy array to folder 'states/'
+        Args:
+            Numpy array
+        """
+        now = datetime.now()
+        dt_string = now.strftime("%d-%m-%Y %H:%M:%S")
+        np.save(f'states/states_from_{dt_string}', states)
+
+    def fit(self, u_train, y_teacher, save_states=False):
         """
         Method to find optimal weights for W_out using ridge regression
         Args:
             u_inputs: np.array of dimensions (N_training_samples x n_inputs) with training inputs
             y_teacher: np.array of dimension (N_training_samples x n_outputs) with teacher outputs
-            save_states: Bool to save internal states x
-            inspect: show a visualisation of the collected reservoir states
+            save_states: Bool to specify wether generated states should be saved (determining washout time)
         Returns:
-            the network's output on the training data, using the trained weights
+            The mean square error on the training data
         """
-
         self._log('Harvesting states...')
         states = self._harvest_states(u_train, y_teacher)
+
+        if save_states:
+            self._save_states(states)
 
         # Discard states[n < washout_time] and correspoding y_teachers[n < washout_time]
         states = states[self.washout_time:, :]
@@ -190,42 +207,6 @@ class ESN():
         train_mse = self._compute_mse(states, y_teacher)
         self._log(f'Finished training! With train MSE: {train_mse}')
         return train_mse
-
-    # def predict(self, inputs, continuation=True):
-    #     """
-    #     Apply the learned weights to the network's reactions to new input.
-    #     Args:
-    #         inputs: array of dimensions (N_test_samples x n_inputs)
-    #         continuation: if True, start the network from the last training state
-    #     Returns:
-    #         Array of output activations
-    #     """
-    #     if inputs.ndim < 2:
-    #         inputs = np.reshape(inputs, (len(inputs), -1))
-    #     n_samples = inputs.shape[0]
-
-    #     if continuation:
-    #         laststate = self.laststate
-    #         lastinput = self.lastinput
-    #         lastoutput = self.lastoutput
-    #     else:
-    #         laststate = np.zeros(self.reservoir_size)
-    #         lastinput = np.zeros(self.n_inputs)
-    #         lastoutput = np.zeros(self.n_outputs)
-
-    #     inputs = np.vstack([lastinput, self._scale_inputs(inputs)])
-    #     states = np.vstack(
-    #         [laststate, np.zeros((n_samples, self.reservoir_size))])
-    #     outputs = np.vstack(
-    #         [lastoutput, np.zeros((n_samples, self.n_outputs))])
-
-    #     for n in range(n_samples):
-    #         states[
-    #             n + 1, :] = self._update(states[n, :], inputs[n + 1, :], outputs[n, :])
-    #         outputs[n + 1, :] = self.out_activation(np.dot(self.W_out,
-    #                                                        np.concatenate([states[n + 1, :], inputs[n + 1, :]])))
-
-    #     return self._unscale_teacher(self.out_activation(outputs[1:]))
 
     def _log(self, msg):
         """
