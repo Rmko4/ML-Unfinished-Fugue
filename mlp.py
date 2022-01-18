@@ -3,17 +3,11 @@ from typing import List
 
 import numpy as np
 import tensorflow.keras as keras
-from numpy.lib.stride_tricks import sliding_window_view
-from sklearn.linear_model import LinearRegression
 
-from data_io.midi_file import (MODULATION, TEMPO, midi_compact_to_midi_file,
-                               midi_tones_to_midi_file)
-from data_io.model_data import (convert_midi_compact_sc_to_training_data,
-                                convert_raw_to_training_data, load_data_raw)
-from data_io.vector_encoders import (InputVectorEncoderMC,
-                                     InputVectorEncoderSC,
-                                     OutputVectorEncoderMC,
-                                     OutputVectorEncoderSC)
+from data_io.midi_file import MODULATION, TEMPO, midi_tones_to_midi_file
+from data_io.model_data import convert_raw_to_training_data, load_data_raw
+from data_io.vector_encoders import InputVectorEncoderMC, OutputVectorEncoderMC
+from model_extensions.predict_sequence import SequencePredictorMixin
 
 if __name__ == "__main__":
     FILENAME_F = "F.txt"  # Requires tab delimited csv
@@ -40,12 +34,13 @@ class MetricPrintCallback(keras.callbacks.Callback):
         print('-'*50)
 
 
-class MultiLayerPerceptronMC(keras.Model):
-    def __init__(self, hidden_units, ove: OutputVectorEncoderMC,
-                 ive: InputVectorEncoderMC, **kwargs):
-        super().__init__(**kwargs)
-        self.ove = ove
-        self.ive = ive
+class MultiLayerPerceptronMC(SequencePredictorMixin, keras.Model):
+    def __init__(self, ive: OutputVectorEncoderMC,
+                 ove: InputVectorEncoderMC, hidden_units, batch_size: int = None,
+                 **kwargs):
+        super().__init__(ive, ove, **kwargs)
+
+        self.batch_size=batch_size
 
         self.hidden_0 = keras.layers.Dense(
             hidden_units,
@@ -77,33 +72,10 @@ class MultiLayerPerceptronMC(keras.Model):
             validation_split=0, **kwargs):
         verbose = 0
         callbacks.append([MetricPrintCallback()])
-        return super().fit(x, y, batch_size, epochs, verbose, callbacks, validation_split, **kwargs)
+        if batch_size:
+            self.batch_size = batch_size
 
-    def predict_sequence(self, X: np.ndarray, steps=64):
-        mc_pred_seq = []
-        u = self.ive.transform(X)
-
-        for _ in range(steps):
-            # Create single window view
-            u_sw = sliding_window_view(u, len(X), axis=0)
-            u_sw = u_sw.reshape(u_sw.shape[0], -1)
-
-            # Raw output
-            y_pred = self(u_sw)
-            # Convert list of tensors to list of numpy arrays
-            y_pred = [x.numpy() for x in y_pred]
-
-            # Select note and duration on maximum likelihood
-            out = self.ove.inv_transform_maximum_likelihood(y_pred)
-
-            # Add the prediction to the sequence
-            mc_pred_seq.append(*out)
-
-            # Update window with new prediction
-            new_u = self.ive.transform(out)
-            u = np.concatenate((u[1:], new_u))
-
-        return np.array(mc_pred_seq)
+        return super().fit(x, y, self.batch_size, epochs, verbose, callbacks, validation_split, **kwargs)
 
 
 def apply_mlp_MC():
@@ -114,7 +86,7 @@ def apply_mlp_MC():
     # Output should NOT be flattened for mlp.
     u, y = train
 
-    mlp = MultiLayerPerceptronMC(64, ove, ive)
+    mlp = MultiLayerPerceptronMC(ive, ove, 32)
     mlp.compile(optimizer='adam')
 
     callbacks = [keras.callbacks.EarlyStopping(patience=3)]
