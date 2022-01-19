@@ -1,5 +1,5 @@
 % play solutions
-addpath(genpath('E:/Herbert/IUB/Lehre/MLFall04/Matlab/Bach'));
+addpath(genpath('C:\Users\lukas\Downloads'));
 
 % load the data: 2 voices in columns
 load F.txt -ascii;
