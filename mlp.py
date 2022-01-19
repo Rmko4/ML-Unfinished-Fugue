@@ -35,16 +35,18 @@ class MetricPrintCallback(keras.callbacks.Callback):
 
 
 class MultiLayerPerceptronMC(SequencePredictorMixin, keras.Model):
-    def __init__(self, ive: OutputVectorEncoderMC,
-                 ove: InputVectorEncoderMC, hidden_units, batch_size: int = None,
-                 **kwargs):
+    def __init__(self, ive: InputVectorEncoderMC,
+                 ove: OutputVectorEncoderMC, hidden_units, batch_size: int = None,
+                 l2: float = None, **kwargs):
         super().__init__(ive, ove, **kwargs)
 
-        self.batch_size=batch_size
+        self.batch_size = batch_size
+        kernel_regularizer = keras.regularizers.l2(l2) if l2 else None
 
         self.hidden_0 = keras.layers.Dense(
             hidden_units,
             activation='sigmoid',
+            kernel_regularizer=kernel_regularizer,
             name='hidden')
 
         self.outputs = []
@@ -52,6 +54,7 @@ class MultiLayerPerceptronMC(SequencePredictorMixin, keras.Model):
             output_layer = keras.layers.Dense(
                 self.ove.encoder_len[channel],
                 activation='softmax',
+                kernel_regularizer=kernel_regularizer,
                 name=f'output_{channel}')
             self.outputs.append(output_layer)
 
@@ -69,13 +72,15 @@ class MultiLayerPerceptronMC(SequencePredictorMixin, keras.Model):
         return super().compile(optimizer, loss, run_eagerly=run_eagerly, **kwargs)
 
     def fit(self, x=None, y=None, batch_size=None, epochs=1, callbacks: List = [],
-            validation_split=0, **kwargs):
-        verbose = 0
-        callbacks.append([MetricPrintCallback()])
+            validation_split=0, verbose=1, **kwargs):
+        fwd_cb = callbacks.copy()
+        if verbose == 1:  # Verbose 0 will not print intermediate input
+            fwd_cb.append([MetricPrintCallback()])
         if batch_size:
             self.batch_size = batch_size
 
-        return super().fit(x, y, self.batch_size, epochs, verbose, callbacks, validation_split, **kwargs)
+        return super().fit(x, y, self.batch_size, epochs, callbacks=fwd_cb,
+                           validation_split=validation_split, verbose=0, **kwargs)
 
 
 def apply_mlp_MC():
