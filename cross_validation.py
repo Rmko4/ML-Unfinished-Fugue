@@ -14,19 +14,19 @@ if __name__ == "__main__":
     FILENAME_F = "F.txt"  # Requires tab delimited csv
 
 # batch_size is power of two
-PARAM_DIST_LINEAR = {"window_length": np.linspace(1, 200, 200, dtype=int)}
+PARAM_DIST_LINEAR = {"window_length": np.linspace(1, 400, 400, dtype=int)}
 
-PARAM_DIST_RIDGE = {"alpha": loguniform(1e-1, 1e3),
-                    "window_length": np.linspace(1, 200, 200, dtype=int)}
+PARAM_DIST_RIDGE = {"alpha": loguniform(1e-2, 1e3),
+                    "window_length": np.linspace(1, 400, 400, dtype=int)}
 
 PARAM_DIST_MLP = {"batch_size": [2**x for x in range(4, 9)],
-                  "hidden_units": np.linspace(4, 256, 253, dtype=int),
+                  "hidden_units": np.linspace(4, 1024, 1021, dtype=int),
                   "l2": loguniform(1e-8, 1e-2),
-                  "window_length": np.linspace(1, 200, 200, dtype=int)}
+                  "window_length": np.linspace(1, 400, 400, dtype=int)}
 
 N_ITER = 100
 N_SPLIT = 5
-VALIDATION_SPLIT = 0.1
+VALIDATION_SPLIT = 0.2
 
 MAX_EPOCHS_MLP = 100
 EARLY_STOPPING_PATIENCE_MLP = 3
@@ -128,8 +128,8 @@ def cv_ridge():
                    
 def cv_all_models():
     # cv_lr()
-    # cv_ridge()
-    cv_mlp()
+    cv_ridge()
+    # cv_mlp()
 
 
 if __name__ == "__main__":

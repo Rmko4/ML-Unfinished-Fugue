@@ -23,8 +23,9 @@ if __name__ == "__main__":
     OUTPUT_PATH = Path("output_midi_files")
     OMIT_REST = True
     CHANNEL = 0
+    ALPHA = 46.8
     WINDOW_LENGTH_SC = 10
-    WINDOW_LENGTH_MC = 48
+    WINDOW_LENGTH_MC = 38
     N_NEW_SYMBOLS = 160  # Roughly 20 seconds considering bpm 120 and 4 symbols per beat
 
 
@@ -138,10 +139,43 @@ def apply_linear_regression_MC():
         midi_raw[-WINDOW_LENGTH_MC:], steps=N_NEW_SYMBOLS)
 
     full_sequence = np.concatenate((midi_raw, predicted_sequence), axis=0)
-    midi_tones_to_midi_file(predicted_sequence, "pred_lr_mc.mid",
+
+    output_file = OUTPUT_PATH / "pred_linear_mc.mid"
+    midi_tones_to_midi_file(predicted_sequence, str(output_file),
                             tempo=TEMPO, modulation=MODULATION)
 
+def apply_ridge_regression_MC():
+    midi_raw = load_data_raw(FILENAME_F)[:-16, :]
+    data, ove, ive = convert_raw_to_training_data(
+        midi_raw, window_length=WINDOW_LENGTH_MC, flatten_output=True)
+    # Training data must be flattened for linear regressor
+
+    u, y = data
+
+    train_u, val_u, train_y, val_y = train_test_split(u, y, test_size=0.2)
+
+    lreg = RidgeRegressionMC(ive, ove, alpha=ALPHA)
+
+    lreg.fit(train_u, train_y)
+    print(lreg.score(val_u, val_y))
+
+    # pred_val_y = lreg.predict(val_u)
+    #
+    # pd.DataFrame(pred_val_y).to_csv(
+    #     "postprocessing/probabilities.csv", header=None, index=None)
+    # read = pd.read_csv("postprocessing/probabilities.csv",
+    #                    header=None).to_numpy()
+
+    predicted_sequence = lreg.predict_sequence(
+        midi_raw[-WINDOW_LENGTH_MC:], steps=N_NEW_SYMBOLS)
+
+    full_sequence = np.concatenate((midi_raw, predicted_sequence), axis=0)
+
+    output_file = OUTPUT_PATH / "pred_ridge_mc.mid"
+    midi_tones_to_midi_file(predicted_sequence, str(output_file),
+                            tempo=TEMPO, modulation=MODULATION)
 
 if __name__ == "__main__":
     apply_linear_regression_SC()
     apply_linear_regression_MC()
+    apply_ridge_regression_MC()
