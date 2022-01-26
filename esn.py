@@ -1,5 +1,9 @@
+from xml.dom import INDEX_SIZE_ERR
 import numpy as np
 from datetime import datetime
+import seaborn as sns
+import pandas as pd
+import matplotlib.pyplot as plt
 
 
 class ESN():
@@ -80,16 +84,25 @@ class ESN():
         self.W_fb = self.random_state_.rand(self.reservoir_size, self.n_outputs) - 0.5
         self.bias = self.random_state_.rand(self.reservoir_size) - 0.5
 
-        if self.starting_state == 'zeros':
-            self.x = np.zeros(self.reservoir_size)
-        else:
-            self.x = self.random_state_.rand(self.reservoir_size) - 0.5
-
         # Scale all tensors
         self.W_in *= self.W_in_scaling
         self.W *= self.W_scaling
         self.W_fb *= self.W_fb_scaling
         self.bias *= self.bias_scaling
+
+        # Initialize starting state
+        self._init_internal_state(self.starting_state)
+
+    def _init_internal_state(self, values):
+        """
+        Method to initialize the internal state
+        Args:
+            values: String the specify whether state should be initialized randomly, or with zeros
+        """
+        if values == 'zeros':
+            self.x = np.zeros(self.reservoir_size)
+        else:
+            self.x = self.random_state_.rand(self.reservoir_size) - 0.5
 
     def _activation_function(self, x):
         """
@@ -97,6 +110,8 @@ class ESN():
         """
         if self.activation_func == 'tanh':
             x = np.tanh(x)
+        if self.activation_func == 'sigmoid':
+            x = 1/(1 + np.exp(-x))
         return x
 
     def _update(self, u, y):
@@ -109,6 +124,7 @@ class ESN():
         x(n+1) = (1-leaking_rate)x(n) + leaking_rate*f(W_in*u(n+1) + W*x(n) + W_fb*y(n) + bias)
         """
         pre_x = np.dot(self.W_in, u) + np.dot(self.W, self.x) + np.dot(self.W_fb, y) + self.bias
+        # pre_x = np.dot(self.W_in, u) + np.dot(self.W, self.x) + np.dot(self.W_fb, y)
         pre_x = self.leaking_rate * self._activation_function(pre_x)
         new_x = (1 - self.leaking_rate)*self.x + pre_x
         self.x = new_x
@@ -207,6 +223,54 @@ class ESN():
         train_mse = self._compute_mse(states, y_teacher)
         self._log(f'Finished training! With train MSE: {train_mse}')
         return train_mse
+
+    def determine_washout_time(self, u_train, y_teacher, n_neurons, max_t):
+        """
+        Mehtod to determine the washout time. Drives the network twice and plots the
+        neuron activations
+        Args:
+            u_inputs: np.array of dimensions (N_training_samples x n_inputs) with training inputs
+            y_teacher: np.array of dimension (N_training_samples x n_outputs) with teacher outputs
+            n_neurons: int to specify the number of neurons to plot
+            max_t: int to specify the time interval of plotting 0, max_t
+        """
+        # Drive the network twice with different internal state x
+        self._init_internal_state('random')
+        states_1 = self._harvest_states(u_train, y_teacher)
+
+        self._init_internal_state('random')
+        states_2 = self._harvest_states(u_train, y_teacher)
+
+        # Initialize arrays
+        data = np.empty((2*n_neurons*max_t, 4))
+        time = []
+        values = []
+        neuron_idx = []
+        run = []
+
+        t = list(range(0, max_t))
+        run_1 = [1 for i in range(max_t)]
+        run_2 = [2 for i in range(max_t)]
+
+        for i in range(n_neurons):
+            time = time + t + t
+
+            values_1 = states_1[0:max_t, i]
+            values_2 = states_2[0:max_t, i]
+            values = values + values_1.tolist() + values_2.tolist()
+
+            idxs = [i for j in range(max_t)]
+            neuron_idx = neuron_idx + idxs + idxs
+
+            run = run + run_1 + run_2
+
+        data[:, 0] = time
+        data[:, 1] = values
+        data[:, 2] = neuron_idx
+        data[:, 3] = run
+        df = pd.DataFrame(data, columns=['time', 'values', 'neuron_idx', 'run'])
+        sns.lineplot(data=df, x='time', y='values', hue='neuron_idx', style='run')
+        plt.show()
 
     def _log(self, msg):
         """

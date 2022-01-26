@@ -1,3 +1,4 @@
+from audioop import bias
 from esn import ESN
 from data_io.midi_duration import (MIDI_COMPACT_SC,
                                    midi_tones_file_to_midi_compact)
@@ -15,5 +16,8 @@ data, ove, ive = convert_raw_to_training_data(
 
 u, y = data
 
-esn = ESN(u.shape[1], y.shape[1], silent=False)
-esn.fit(u, y, save_states=True)
+esn = ESN(u.shape[1], y.shape[1], silent=False, reservoir_size=200, activation_func='tanh',
+          W_in_scaling=0.5, W_scaling=0.2, W_fb_scaling=0.5, bias_scaling=0.2, spectral_radius=0.95, leaking_rate=0.95, washout_time=10)
+
+# esn.fit(u, y)
+esn.determine_washout_time(u, y, 3, 200)
