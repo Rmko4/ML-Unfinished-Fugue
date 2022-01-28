@@ -14,11 +14,12 @@ for i,line in enumerate(lines):
 
 for i in range(len(lines)):
     for j in range(4):
-        notes[j].append((int)(lines[i][j]))
         if (int)(lines[i][j]) != 0:
-            mod12_notes[j].append( (((int)(lines[i][j])) % 12) + 1)
+            notes[j].append((int)(lines[i][j])+8)
+            mod12_notes[j].append( (((int)(lines[i][j]) +8 ) % 12) + 1)
         else:
             mod12_notes[j].append(0)
+            notes[j].append(0)
 
 f.close()
 
