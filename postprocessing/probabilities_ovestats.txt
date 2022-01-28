@@ -1,0 +1,9 @@
+duration_max: 24
+duration_min: 1
+
+note_max: 76
+note_min: 54
+
+playing_idx: 0
+notes_idx: [1:24]
+durations_idx: [24:]
