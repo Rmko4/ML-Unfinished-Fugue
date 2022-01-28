@@ -8,13 +8,17 @@ from data_io.midi_file import MODULATION, TEMPO, midi_tones_to_midi_file
 from data_io.model_data import convert_raw_to_training_data, load_data_raw
 from data_io.vector_encoders import InputVectorEncoderMC, OutputVectorEncoderMC
 from model_extensions.predict_sequence import SequencePredictorMixin
+from postprocessing.postprocessing import post_process_output
 
 if __name__ == "__main__":
     FILENAME_F = "F.txt"  # Requires tab delimited csv
     OUTPUT_PATH = Path("output_midi_files")
+    MODEL_SAVE_PATH = Path("models/mlp")
+    POST_PROCESS = True
+    SAVE_MODEL = False
     OMIT_REST = True
     CHANNEL = 0
-    WINDOW_LENGTH_MC = 48
+    WINDOW_LENGTH_MC = 31
     N_NEW_SYMBOLS = 160  # Roughly 20 seconds considering bpm 120 and 4 symbols per beat
 
 
@@ -91,26 +95,27 @@ def apply_mlp_MC():
     # Output should NOT be flattened for mlp.
     u, y = train
 
-    mlp = MultiLayerPerceptronMC(ive, ove, 32)
+    mlp = MultiLayerPerceptronMC(ive, ove, hidden_units=410)
     mlp.compile(optimizer='adam')
 
     callbacks = [keras.callbacks.EarlyStopping(patience=3)]
+    if SAVE_MODEL:
+        callbacks.append(keras.callbacks.ModelCheckpoint(MODEL_SAVE_PATH))
 
     mlp.fit(u, y, batch_size=32, epochs=100,
             validation_split=0.2, callbacks=callbacks)
 
+    # Will use post_process_output as the function to create a sequence of notes if POST_PROCESS
+    post_processing_func = post_process_output if POST_PROCESS else None
+
     predicted_sequence = mlp.predict_sequence(
-        midi_raw[-WINDOW_LENGTH_MC:], steps=N_NEW_SYMBOLS)
+        midi_raw[-WINDOW_LENGTH_MC:], steps=N_NEW_SYMBOLS, inv_transform_fn=post_processing_func)
 
     full_sequence = np.concatenate((midi_raw, predicted_sequence), axis=0)
 
     output_file = OUTPUT_PATH / "pred_mlp_mc.mid"
     midi_tones_to_midi_file(predicted_sequence, str(output_file),
                             tempo=TEMPO, modulation=MODULATION)
-    # Cross validate over batch size, number of units, window length
-    # Keep max epochs same, but not too large.
-    # Metric to determine best model?
-    # Random grid search? 5 fold?
 
 
 if __name__ == "__main__":

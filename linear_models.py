@@ -17,11 +17,13 @@ from data_io.vector_encoders import (InputVectorEncoderMC,
                                      OutputVectorEncoderMC,
                                      OutputVectorEncoderSC)
 from model_extensions.predict_sequence import SequencePredictorMixin
+from postprocessing.postprocessing import post_process_output
 
 if __name__ == "__main__":
     FILENAME_F = "F.txt"  # Requires tab delimited csv
     OUTPUT_PATH = Path("output_midi_files")
     OMIT_REST = True
+    POST_PROCESS = True
     CHANNEL = 0
     ALPHA = 46.8
     WINDOW_LENGTH_SC = 10
@@ -94,13 +96,6 @@ def apply_linear_regression_SC():
     lreg.fit(train_u, train_y)
     print(lreg.score(val_u, val_y))
 
-    # pred_val_y = lreg.predict(val_u)
-    #
-    # pd.DataFrame(pred_val_y).to_csv(
-    #     "postprocessing/probabilities.csv", header=None, index=None)
-    # read = pd.read_csv("postprocessing/probabilities.csv",
-    #                    header=None).to_numpy()
-
     predicted_sequence = lreg.predict_sequence(
         in_d[-WINDOW_LENGTH_SC:], duration=N_NEW_SYMBOLS)
 
@@ -128,21 +123,18 @@ def apply_linear_regression_MC():
     lreg.fit(train_u, train_y)
     print(lreg.score(val_u, val_y))
 
-    # pred_val_y = lreg.predict(val_u)
-    #
-    # pd.DataFrame(pred_val_y).to_csv(
-    #     "postprocessing/probabilities.csv", header=None, index=None)
-    # read = pd.read_csv("postprocessing/probabilities.csv",
-    #                    header=None).to_numpy()
+    # Will use post_process_output as the function to create a sequence of notes if POST_PROCESS
+    post_processing_func = post_process_output if POST_PROCESS else None
 
     predicted_sequence = lreg.predict_sequence(
-        midi_raw[-WINDOW_LENGTH_MC:], steps=N_NEW_SYMBOLS)
+        midi_raw[-WINDOW_LENGTH_MC:], steps=N_NEW_SYMBOLS, inv_transform_fn=post_processing_func)
 
     full_sequence = np.concatenate((midi_raw, predicted_sequence), axis=0)
 
     output_file = OUTPUT_PATH / "pred_linear_mc.mid"
     midi_tones_to_midi_file(predicted_sequence, str(output_file),
                             tempo=TEMPO, modulation=MODULATION)
+
 
 def apply_ridge_regression_MC():
     midi_raw = load_data_raw(FILENAME_F)[:-16, :]
@@ -159,15 +151,11 @@ def apply_ridge_regression_MC():
     lreg.fit(train_u, train_y)
     print(lreg.score(val_u, val_y))
 
-    # pred_val_y = lreg.predict(val_u)
-    #
-    # pd.DataFrame(pred_val_y).to_csv(
-    #     "postprocessing/probabilities.csv", header=None, index=None)
-    # read = pd.read_csv("postprocessing/probabilities.csv",
-    #                    header=None).to_numpy()
+    # Will use post_process_output as the function to create a sequence of notes if POST_PROCESS
+    post_processing_func = post_process_output if POST_PROCESS else None
 
     predicted_sequence = lreg.predict_sequence(
-        midi_raw[-WINDOW_LENGTH_MC:], steps=N_NEW_SYMBOLS)
+        midi_raw[-WINDOW_LENGTH_MC:], steps=N_NEW_SYMBOLS, inv_transform_fn=post_processing_func)
 
     full_sequence = np.concatenate((midi_raw, predicted_sequence), axis=0)
 
@@ -175,7 +163,8 @@ def apply_ridge_regression_MC():
     midi_tones_to_midi_file(predicted_sequence, str(output_file),
                             tempo=TEMPO, modulation=MODULATION)
 
+
 if __name__ == "__main__":
-    apply_linear_regression_SC()
-    apply_linear_regression_MC()
+    # apply_linear_regression_SC()
+    # apply_linear_regression_MC()
     apply_ridge_regression_MC()
