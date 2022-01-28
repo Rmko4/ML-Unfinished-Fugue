@@ -21,3 +21,4 @@ esn = ESN(u.shape[1], y.shape[1], silent=False, reservoir_size=200, activation_f
 
 # esn.fit(u, y)
 esn.determine_washout_time(u, y, 3, 200)
+esn.save_model()

@@ -1,9 +1,11 @@
-from xml.dom import INDEX_SIZE_ERR
-import numpy as np
+import os
 from datetime import datetime
-import seaborn as sns
-import pandas as pd
+from pathlib import Path
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
 
 
 class ESN():
@@ -58,6 +60,7 @@ class ESN():
             self.random_state_ = np.random.mtrand._rand
 
         self.silent = silent
+        self.now = datetime.now()
 
         # Initialize the weight
         self._init_weights()
@@ -124,7 +127,6 @@ class ESN():
         x(n+1) = (1-leaking_rate)x(n) + leaking_rate*f(W_in*u(n+1) + W*x(n) + W_fb*y(n) + bias)
         """
         pre_x = np.dot(self.W_in, u) + np.dot(self.W, self.x) + np.dot(self.W_fb, y) + self.bias
-        # pre_x = np.dot(self.W_in, u) + np.dot(self.W, self.x) + np.dot(self.W_fb, y)
         pre_x = self.leaking_rate * self._activation_function(pre_x)
         new_x = (1 - self.leaking_rate)*self.x + pre_x
         self.x = new_x
@@ -156,7 +158,17 @@ class ESN():
             states[n, :] = self.x
         return states
 
-    def _ridge_regression(self, X, D):  # @TODO does this need padding with const 1?
+    def _add_bias(self, x):
+        """
+        Method to add bias input to a vector or matrix
+        Args:
+            x: Vector as an np.array of
+        Returns:
+            x_padded: vector that has all 1s as an extra column
+        """
+        return np.c_[x, np.ones(x.shape[0])]
+
+    def _ridge_regression(self, X, D):
         """
         Method to apply ridge regression
         W_out = (X'X + a^2I)^-1 X'D
@@ -166,6 +178,8 @@ class ESN():
         Returns:
             Optimal weight matrix W_out of dimensions: n_outputs x reservoir_size
         """
+        # Add bias of constant 1 to X matrix (as a column)
+        X = self._add_bias(X)
         n = X.shape[1]
         R = np.dot(X.T, X)
         P = np.dot(X.T, D)
@@ -182,6 +196,7 @@ class ESN():
         Returns:
             Mean square error
         """
+        X = self._add_bias(X)
         predictions = np.dot(X, self.W_out.T)
         return np.sqrt(np.mean((predictions - y)**2))
 
@@ -191,8 +206,7 @@ class ESN():
         Args:
             Numpy array
         """
-        now = datetime.now()
-        dt_string = now.strftime("%d-%m-%Y %H:%M:%S")
+        dt_string = self.now.strftime("%d-%m-%Y %H:%M:%S")
         np.save(f'states/states_from_{dt_string}', states)
 
     def fit(self, u_train, y_teacher, save_states=False):
@@ -271,6 +285,52 @@ class ESN():
         df = pd.DataFrame(data, columns=['time', 'values', 'neuron_idx', 'run'])
         sns.lineplot(data=df, x='time', y='values', hue='neuron_idx', style='run')
         plt.show()
+
+    def predict_sequence(self, u_drive, y_drive, l):
+        """
+        Method to predict a sequence
+        Args:
+            u_drive: Number of input sequences to drive (start) the networks
+            y_drive: Teacher outputs to drive the network
+            l: Length of the requested sequence
+        Returns:
+            A matrix of size l x output dimensions
+        """
+        output = np.empty((l, self.n_outputs))
+        u_drive = self._add_bias(u_drive)
+
+        # drive the network
+        self._harvest_states(u_drive, y_drive)
+
+        u = u_train[0, :]
+        y = np.zeros(self.n_outputs)
+        self._update(u, y)
+        states[0, :] = self.x
+
+        for n in range(1, n_train_samples):
+            u = u_train[n, :]
+            y = y_teacher[n-1, :]
+            self._update(u, y)
+            states[n, :] = self.x
+        return states
+
+    def save_model(self, ):
+        """
+        Method to save model in the folder '/models'
+        """
+        models_dir = Path.cwd() / 'models'
+        if not models_dir.is_dir():
+            os.makedirs(models_dir)
+
+        dt_string = self.now.strftime("%d-%m-%Y %H:%M:%S")
+        save_dir = models_dir / dt_string
+        os.makedirs(save_dir)
+
+        np.save(save_dir / 'W_in', self.W_in)
+        np.save(save_dir / 'W', self.W)
+        np.save(save_dir / 'W_fb', self.W_fb)
+        np.save(save_dir / 'W_out', self.W_out)
+        np.save(save_dir / 'bias', self.bias)
 
     def _log(self, msg):
         """
