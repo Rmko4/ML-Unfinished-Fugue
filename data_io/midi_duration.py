@@ -15,6 +15,13 @@ if __name__ == "__main__":
 
 
 def midi_tones_to_midi_compact(midi_notes: np.ndarray, omit_rest=True, modulation=0) -> MIDI_COMPACT:
+    '''
+    Converts raw midi values to the MIDI_COMPACT format.
+    midi_notes: The raw midi values
+    omit_rest: Whether the pauses in the music should be removed from the encoding
+    modulation: The modulation of the midi notes. The encoded midi value will be
+    midi + modulation
+    ''' 
     symbol_len = midi_notes.shape[0]
     n_channels = midi_notes.shape[1]
 
@@ -43,6 +50,11 @@ def midi_tones_to_midi_compact(midi_notes: np.ndarray, omit_rest=True, modulatio
 
 
 def midi_tones_file_to_midi_compact(in_file="F.txt", **kwargs) -> MIDI_COMPACT:
+    '''
+    Reads a midi tones file as a tab separated csv. The columns represent the
+    different channels/voices and the rows the symbol time.
+    return: raw midi values from the midi tones file in MIDI_COMPACT format
+    '''
     frequencies: DataFrame = pd.read_csv(in_file, sep="\t", header=None)
     frequencies = frequencies.to_numpy()
     return midi_tones_to_midi_compact(frequencies, **kwargs)
