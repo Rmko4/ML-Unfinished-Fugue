@@ -66,8 +66,24 @@ def load_data_raw(file="F.txt") -> np.ndarray:
     return midi_raw
 
 
+def create_sliding_window_view_data(u, y, window_length):
+    u_sw = sliding_window_view(u, window_length, axis=0)[:-1]
+    # Flatten the second and third dimension
+    u_sw = u_sw.reshape(u_sw.shape[0], -1)
+
+    # Omit initial part of y, as this is part of the first window.
+    if not isinstance(y, list):
+        y = y[window_length:]
+    else:
+        # Case not flattened
+        y = [x[window_length:] for x in y]
+
+    return u_sw, y
+
+
 def convert_raw_to_training_data(midi_raw: np.ndarray, window_length=48,
-                                 flatten_output=False) -> Tuple[np.ndarray, OutputVectorEncoderMC, InputVectorEncoderMC]:
+                                 flatten_output=False, defer_windowing=False) \
+        -> Tuple[np.ndarray, OutputVectorEncoderMC, InputVectorEncoderMC]:
 
     ove = OutputVectorEncoderMC(midi_raw, flatten_output)
     ive = InputVectorEncoderMC(midi_raw, True)
@@ -76,18 +92,10 @@ def convert_raw_to_training_data(midi_raw: np.ndarray, window_length=48,
         y = ove.transform(X)
         u = ive.transform(X)
 
-        # Generates sliding windows view, with last window omitted, as this contains the last y.
-        u_sw = sliding_window_view(u, window_length, axis=0)[:-1]
-        # Flatten the second and third dimension
-        u_sw = u_sw.reshape(u_sw.shape[0], -1)
-
-        # Omit initial part of y, as this is part of the first window.
-        if flatten_output:
-            y = y[window_length:]
-        else:
-            y = [x[window_length:] for x in y]
-
-        return u_sw, y
+        if defer_windowing:
+            return u, y
+        
+        return create_sliding_window_view_data(u, y, window_length)
 
     train = _encode(midi_raw)
 
@@ -103,4 +111,5 @@ if __name__ == "__main__":
         in_d, validation_split=.2)
 
     in_d_raw = load_data_raw(FILENAME_F)[:, :]
-    train_mc, tve_mc, ive_mc = convert_raw_to_training_data(in_d_raw, flatten_output=False)
+    train_mc, tve_mc, ive_mc = convert_raw_to_training_data(
+        in_d_raw, flatten_output=False)

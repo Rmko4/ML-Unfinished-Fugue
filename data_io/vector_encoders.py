@@ -5,24 +5,26 @@ from music_utils.music_circle import get_chroma_coords, get_circle5_coords
 from midi_duration import MIDI_COMPACT_SC
 
 
+OVE_OUT = Union[List[np.ndarray], np.ndarray]
+
 class OutputVectorEncoderMC:
     def __init__(self, midi_raw: np.ndarray, flatten=True):
         self.n_channels = midi_raw.shape[1]
         self.flatten = flatten
 
         midi_notes_masked = np.ma.masked_equal(midi_raw, 0)
-        self.note_min = midi_notes_masked.min(axis=0)
-        self.note_max = midi_notes_masked.max(axis=0)
-
+        self.note_min = np.array(midi_notes_masked.min(axis=0))
+        self.note_max = np.array(midi_notes_masked.max(axis=0))
+        
         # Notes in [self.note_min, self.note_max]
         self.note_range = self.note_max - self.note_min + 1
         self.encoder_len = self.note_range + 1
 
-        self._playing_idx = 0
-        self._notes_idx = 1
+        self.playing_idx = 0
+        self.notes_idx = 1
         self._idx_slice = np.cumsum(np.concatenate(([0], self.encoder_len)))
 
-    def get_teacher_vector(self, midi_notes: np.ndarray) -> Union[List[np.ndarray], np.ndarray]:
+    def get_teacher_vector(self, midi_notes: np.ndarray) -> OVE_OUT:
         output_vector = []
 
         for channel in range(self.n_channels):
@@ -30,9 +32,9 @@ class OutputVectorEncoderMC:
             midi_note = midi_notes[channel]
 
             if midi_note == 0:
-                y[self._playing_idx] = 1
+                y[self.playing_idx] = 1
             else:
-                note_idx = self._notes_idx + midi_note - self.note_min[channel]
+                note_idx = self.notes_idx + midi_note - self.note_min[channel]
                 y[note_idx] = 1
             output_vector.append(y)
 
@@ -41,7 +43,7 @@ class OutputVectorEncoderMC:
         else:
             return output_vector
 
-    def transform(self, freq_raw: np.ndarray) -> np.ndarray:
+    def transform(self, freq_raw: np.ndarray) -> OVE_OUT:
         y = []
         for x in freq_raw:
             output_vector = self.get_teacher_vector(x)
@@ -60,7 +62,7 @@ class OutputVectorEncoderMC:
     def output_vector_channel(self, X: np.ndarray, channel: int) -> np.ndarray:
         return X[:, self._idx_slice[channel]:self._idx_slice[channel + 1]]
 
-    def inv_transform_maximum_likelihood(self, X: np.ndarray) -> np.ndarray:
+    def inv_transform_max_probability(self, X: OVE_OUT) -> np.ndarray:
         midi_notes = []
         for channel in range(self.n_channels):
             if self.flatten:
@@ -69,7 +71,7 @@ class OutputVectorEncoderMC:
                 output_vector = X[channel]
             idx = output_vector.argmax(axis=1)
             idx_masked = np.ma.masked_equal(idx, 0)
-            midi_note = self.note_min[channel] + idx_masked - self._notes_idx
+            midi_note = self.note_min[channel] + idx_masked - self.notes_idx
             midi_note = np.ma.filled(midi_note, 0)
             midi_notes.append(midi_note)
 
@@ -82,8 +84,8 @@ class InputVectorEncoderMC():
         self.flatten = flatten
 
         midi_notes_masked = np.ma.masked_equal(midi_raw, 0)
-        self.note_min = midi_notes_masked.min(axis=0)
-        self.note_max = midi_notes_masked.max(axis=0)
+        self.note_min = np.array(midi_notes_masked.min(axis=0))
+        self.note_max = np.array(midi_notes_masked.max(axis=0))
 
         self.encoder_len = self.n_channels * 5
 

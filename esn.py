@@ -118,13 +118,13 @@ class ESN():
         return x
 
     def _update(self, u, y):
-        """ 
+        """
         Method to perform update step and sets self.x to self.x = x(n+1)
         Args:
             input u(n+1)
             output y(n)
         Network is governed by update equation:
-        x(n+1) = (1-leaking_rate)x(n) + leaking_rate*f(W_in*u(n+1) + W*x(n) + W_fb*y(n) + bias)
+        x(n+1) = (1-leaking_rate)x(n) + leaking_rate*f(W_in*u(n+1) + W*x(n) + W_fb*y(n-1) + bias)
         """
         pre_x = np.dot(self.W_in, u) + np.dot(self.W, self.x) + np.dot(self.W_fb, y) + self.bias
         pre_x = self.leaking_rate * self._activation_function(pre_x)
@@ -136,9 +136,9 @@ class ESN():
         Method to harvest states used to determine W_out
         Args:
             u_inputs: np.array of dimensions (N_training_samples x n_inputs) with training inputs
-            y_teacher: np.array of dimension (N_training_samples x n_outputs) with teacher outputs   
+            y_teacher: np.array of dimension (N_training_samples x n_outputs) with teacher outputs
         Returns:
-            states: matrix of size N_train_samples x reservoir_size, containing the states it its rows     
+            states: matrix of size N_train_samples x reservoir_size, containing the states it its rows
         """
         # Initialize internal state x (as a zero vector) for every training input
         n_train_samples = u_train.shape[0]
@@ -168,7 +168,7 @@ class ESN():
         """
         return np.c_[x, np.ones(x.shape[0])]
 
-    def _ridge_regression(self, X, D):
+    def _ridge_regression(self, X, D):  # @TODO Fix documentation on dimensions (added 1)
         """
         Method to apply ridge regression
         W_out = (X'X + a^2I)^-1 X'D
@@ -176,7 +176,7 @@ class ESN():
             Matrix X of size N_training_samples x reservoir_size
             Matrix D of zie N_training_samples x n_outputs
         Returns:
-            Optimal weight matrix W_out of dimensions: n_outputs x reservoir_size
+            Optimal weight matrix W_out of dimensions: n_outputs x (reservoir_size + 1)
         """
         # Add bias of constant 1 to X matrix (as a column)
         X = self._add_bias(X)
@@ -286,7 +286,7 @@ class ESN():
         sns.lineplot(data=df, x='time', y='values', hue='neuron_idx', style='run')
         plt.show()
 
-    def predict_sequence(self, u_drive, y_drive, l):
+    def predict_sequence(self, u_drive, y_drive, l, ive, ove):
         """
         Method to predict a sequence
         Args:
@@ -296,23 +296,41 @@ class ESN():
         Returns:
             A matrix of size l x output dimensions
         """
-        output = np.empty((l, self.n_outputs))
-        u_drive = self._add_bias(u_drive)
+
+        # Add one to l to make up for loop starting at 1:l
+        l += 1
 
         # drive the network
-        self._harvest_states(u_drive, y_drive)
+        _ = self._harvest_states(u_drive, y_drive)
 
-        u = u_train[0, :]
-        y = np.zeros(self.n_outputs)
-        self._update(u, y)
-        states[0, :] = self.x
+        # Setup empty matrices
+        pred_sequence = np.empty((l, 4))  # @TODO fix this '4'
+        u = np.empty((l+1, self.n_inputs))
+        y = np.empty((l, self.n_outputs))
 
-        for n in range(1, n_train_samples):
-            u = u_train[n, :]
-            y = y_teacher[n-1, :]
-            self._update(u, y)
-            states[n, :] = self.x
-        return states
+        # Get the last teacher vector and set it as y(n-1)
+        y[0, :] = y_drive[-1, :]
+        y_dims_test = y_drive[-1, :]
+        # Convert y(n-1) to u(n)
+        out = ove.inv_transform_max_probability(np.array([y[0, :]]))[0]
+        u[1, :] = ive.transform(np.array([out]))
+
+        for n in range(1, l):
+            u_n = u[n, :]
+            y_n0 = y[n-1, :]
+            # Get x(n)
+            self._update(u_n, y_n0)
+            # Compute y(n)
+            x_n = self._add_bias(self.x.reshape((1, -1)))
+            y_n = np.dot(self.W_out, x_n.T)
+            # Convert y(n) to a midi value, and back into u(n+1)
+            out = ove.inv_transform_max_probability(y_n.T)[0]
+            u[n+1, :] = ive.transform([out])
+
+            # Save predicted midi values
+            pred_sequence[n, :] = out
+
+        return pred_sequence[1:, :]
 
     def save_model(self, ):
         """
