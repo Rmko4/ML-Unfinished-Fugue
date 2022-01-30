@@ -8,12 +8,13 @@ from data_io.midi_file import MODULATION, TEMPO, midi_tones_to_midi_file
 from data_io.model_data import convert_raw_to_training_data, load_data_raw
 from data_io.vector_encoders import InputVectorEncoderMC, OutputVectorEncoderMC
 from model_extensions.predict_sequence import SequencePredictorMixin
-from postprocessing.postprocessing import post_process_output
+from postprocessing.postprocessing import PostProcessorMC, post_process_output
 
 if __name__ == "__main__":
     FILENAME_F = "F.txt"  # Requires tab delimited csv
     OUTPUT_PATH = Path("output_midi_files")
     MODEL_SAVE_PATH = Path("models/mlp")
+    MEASURE_LEN = 16
     POST_PROCESS = True
     SAVE_MODEL = False
     OMIT_REST = True
@@ -105,11 +106,14 @@ def apply_mlp_MC():
     mlp.fit(u, y, batch_size=32, epochs=100,
             validation_split=0.2, callbacks=callbacks)
 
-    # Will use post_process_output as the function to create a sequence of notes if POST_PROCESS
-    post_processing_func = post_process_output if POST_PROCESS else None
+   # Will instantiate a post_processor if POST_PROCESS
+    post_processor = PostProcessorMC(ove, midi_raw, measure_length=MEASURE_LEN)
+    post_processing_func = post_processor if POST_PROCESS else None
 
     predicted_sequence = mlp.predict_sequence(
-        midi_raw[-WINDOW_LENGTH_MC:], steps=N_NEW_SYMBOLS, inv_transform_fn=post_processing_func)
+        midi_raw[-WINDOW_LENGTH_MC:], steps=N_NEW_SYMBOLS,
+        inv_transform_fn=post_processing_func)
+
 
     full_sequence = np.concatenate((midi_raw, predicted_sequence), axis=0)
 

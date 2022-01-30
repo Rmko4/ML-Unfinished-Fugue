@@ -3,6 +3,7 @@ import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 
 from data_io.vector_encoders import OVE_OUT, InputVectorEncoderMC, OutputVectorEncoderMC
+from postprocessing.postprocessing import PostProcessorMC
 
 
 class SequencePredictorMixin():
@@ -19,13 +20,13 @@ class SequencePredictorMixin():
         self.ove = ove
 
     def predict_sequence(self, X: np.ndarray, steps=64,
-                         inv_transform_fn: Callable[[OVE_OUT, np.ndarray], np.ndarray] = None) \
+                         inv_transform_fn: Callable[[OVE_OUT, OutputVectorEncoderMC], np.ndarray] = None) \
             -> np.ndarray:
         '''
         X: A single window of raw midi values
         steps: The number of steps (single symbol length) to predict.
         inv_tranform_fn: A callable that post processes the output probabilities of
-        both flattened and non-flattened data and converts it to raw midi values.
+            both flattened and non-flattened data and converts it to raw midi values.
         '''
         mc_pred_seq = []
         u = self.ive.transform(X)

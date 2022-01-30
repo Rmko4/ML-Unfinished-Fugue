@@ -17,12 +17,13 @@ from data_io.vector_encoders import (InputVectorEncoderMC,
                                      OutputVectorEncoderMC,
                                      OutputVectorEncoderSC)
 from model_extensions.predict_sequence import SequencePredictorMixin
-from postprocessing.postprocessing import post_process_output
+from postprocessing.postprocessing import PostProcessorMC
 
 if __name__ == "__main__":
     FILENAME_F = "F.txt"  # Requires tab delimited csv
     OUTPUT_PATH = Path("output_midi_files")
     OMIT_REST = True
+    MEASURE_LEN = 16 # Lenght of a measure in symbols
     POST_PROCESS = True
     CHANNEL = 0
     ALPHA = 46.8
@@ -123,19 +124,21 @@ def apply_linear_regression_MC():
     lreg.fit(train_u, train_y)
     print(lreg.score(val_u, val_y))
 
-    # Will use post_process_output as the function to create a sequence of notes if POST_PROCESS
-    post_processing_func = post_process_output if POST_PROCESS else None
+   # Will instantiate a post_processor if POST_PROCESS
+    post_processor = PostProcessorMC(ove, midi_raw, measure_length=MEASURE_LEN)
+    post_processing_func = post_processor if POST_PROCESS else None
 
     predicted_sequence = lreg.predict_sequence(
-        midi_raw[-WINDOW_LENGTH_MC:], steps=N_NEW_SYMBOLS, inv_transform_fn=post_processing_func)
+        midi_raw[-WINDOW_LENGTH_MC:], steps=N_NEW_SYMBOLS,
+        inv_transform_fn=post_processing_func)
 
     pred_y = lreg.predict(u)
-    
+
     pd.DataFrame(predicted_sequence).to_csv(
         "postprocessing/probabilities.txt", header=None, index=None, sep='\t')
     # read = pd.read_csv("postprocessing/probabilities.csv",
     #                    header=None).to_numpy()
-    
+
     full_sequence = np.concatenate((midi_raw, predicted_sequence), axis=0)
 
     output_file = OUTPUT_PATH / "pred_linear_mc.mid"
@@ -144,31 +147,35 @@ def apply_linear_regression_MC():
 
 
 def apply_ridge_regression_MC():
+    # Load the raw midi data and omit the last full measure of 16 symbols.
     midi_raw = load_data_raw(FILENAME_F)[:-16, :]
+
+    # Training data must be flattened for linear regressor.
     data, ove, ive = convert_raw_to_training_data(
         midi_raw, window_length=WINDOW_LENGTH_MC, flatten_output=True)
-    # Training data must be flattened for linear regressor
 
     u, y = data
 
-    train_u, val_u, train_y, val_y = train_test_split(u, y, test_size=0.2)
+    ridge = RidgeRegressionMC(ive, ove, alpha=ALPHA)
+    ridge.fit(u, y)
 
-    lreg = RidgeRegressionMC(ive, ove, alpha=ALPHA)
+    # For splitting into training and validation
+    # train_u, val_u, train_y, val_y = train_test_split(u, y, test_size=0)
+    # ridge.fit(train_u, train_y)
+    # print(ridge.score(val_u, val_y))
 
-    lreg.fit(train_u, train_y)
-    print(lreg.score(val_u, val_y))
+    # Will instantiate a post_processor if POST_PROCESS
+    post_processor = PostProcessorMC(ove, midi_raw, measure_length=MEASURE_LEN)
+    post_processing_func = post_processor if POST_PROCESS else None
 
-    # Will use post_process_output as the function to create a sequence of notes if POST_PROCESS
-    post_processing_func = post_process_output if POST_PROCESS else None
+    predicted_sequence = ridge.predict_sequence(
+        midi_raw[-WINDOW_LENGTH_MC:], steps=N_NEW_SYMBOLS,
+        inv_transform_fn=post_processing_func)
 
-    predicted_sequence = lreg.predict_sequence(
-        midi_raw[-WINDOW_LENGTH_MC:], steps=N_NEW_SYMBOLS, inv_transform_fn=post_processing_func)
-    
     pd.DataFrame(predicted_sequence).to_csv(
         "postprocessing/probabilities.txt", header=None, index=None, sep='\t')
     # read = pd.read_csv("postprocessing/probabilities.csv",
     #                    header=None).to_numpy()
-    
 
     full_sequence = np.concatenate((midi_raw, predicted_sequence), axis=0)
 
