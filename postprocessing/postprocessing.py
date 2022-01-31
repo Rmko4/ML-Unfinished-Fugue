@@ -1,12 +1,4 @@
-# For each voice:
-#   -Notes of Dminor are more likely
-#   -Dminor notes are more likly to start a mesure
-#   -Notes are unlikly to start before a Bar and end after the bar ( a mesure usually starts with a note)
 
-#   -Notes of Dminor are more likly to be long
-#
-# For combination of voices:
-#   -Some differences between notes in different voices at a time are less or more likly.
 
 from unittest.util import _MAX_LENGTH
 from data_io.vector_encoders import OVE_OUT, OutputVectorEncoderMC
@@ -14,6 +6,8 @@ import os
 import random
 import sys
 from typing import List
+
+import copy
 
 import numpy as np
 
@@ -27,11 +21,15 @@ POWER_PROBABILITIES = 2
 MAX_LENGTH = 20
 
 #probability adaptation for possible length, missing key means probability of 0
-LENGTH_PROBABILITIES = {1:2,  2:0.4, 4: 0.7, 6:8, 8:1.2, 10:3, 12: 2, 14:5, 16:0.5, 18:1, 20:1}
+LENGTH_PROBABILITIES = {1:5,  2:0.3, 4:1, 6:8, 8:1.2, 10:3, 12: 2, 14:5, 16:0.5, 18:1, 20:1}
 
 #probability adaptation for possible starting positions within the measure
 #missing key means that position does not allow new note
-MEASURE_POSITION_ADAPTATIONS = {0:1, 2:8, 3:10, 4:1.7, 6:3,7:10, 8:1, 10:6 ,11:10,12:1, 14:3 , 15:30}
+MEASURE_POSITION_ADAPTATIONS = {0:1, 2:16, 3:14, 4:1.3, 6:3,7:10, 8:0.7, 10:6 ,11:15,12:1, 14:3 , 15:33}
+
+#Differences voices probability adaptation
+#non existion keys equal 1
+DIFFERENCES_ADAPTATION = {0:0.4, 1:0.005, 2:0.7, 9: 4, 10: 0.8, 11:0.2, 12: 1.5, 13:0.2, 14:0.3, 16:2, 19:1.5, 21:1.5,22:0.7, 23:0.2, 25:0.2, 26:0.7, 27:3}
 
 
 class PostProcessorMC:
@@ -128,34 +126,37 @@ class PostProcessorMC:
                 output_vectors[i] = [ 1 if x == index_last_note else 0 for x in range(len(output_vectors[i]))]
 
 
+        combinations = []
+        probability_combinations = []
+
+        #assumes up to 4 voices, ugly code I know...
+        for i1  in range(len(output_vectors[0])):
+            if output_vectors[0][i1] < 0.001:
+                continue
+            combination = [None,None,None,None]
+            combination[0] = 0 if i1 == 0 else self.ove.note_min[0] + i1 -1
+            for i2 in range(len(output_vectors[1])):
+                if output_vectors[1][i2] < 0.001:
+                    continue
+                combination[1] = 0 if i2 == 0 else self.ove.note_min[1] + i2 -1
+                for i3 in range(len(output_vectors[2])):
+                    if output_vectors[2][i3] < 0.001:
+                        continue
+                    combination[2] = 0 if i3 == 0 else self.ove.note_min[2] + i3 -1
+                    for i4 in range(len(output_vectors[3])):
+                        if output_vectors[3][i4] < 0.001:
+                            continue
+                        combination[3] = 0 if i4 == 0 else self.ove.note_min[3] + i4 -1
+                        combinations.append(copy.deepcopy(combination))
+                        probability_combinations.append(output_vectors[0][i1] * output_vectors[1][i2] * output_vectors[2][i3] * output_vectors[3][i4])
+
+        for i in range(len(combinations)):
+            prob = self.combination_probability(combinations[i])
+            probability_combinations[i] *= prob
 
 
-        # output_vectors is now a list of numpy arrays constructed from the
-        # raw output (y: OVE_OUT).
-        # Indexing the list will yield the probabilities (np.ndarray) of the
-        # notes for channel 0 to ove.n_channels.
-        # The probability at index 0 (ove.playing_idx) is the probability to
-        # play no note.
-        # ove.note_min[channel] will give the minimum note that can be played
-        # by that channel. This is represented by index 1 (ove.notes_idx) for
-        # that channel.
-        # E.g. the probability that channel (or voice) 2 plays the lowest note
-        # is output_vectors[2][1]. The midi value belonging to this probability
-        # is ove.note_min[2].
-        # The last value in the probability array will correspond to ove.note_max[channel]
-        # The vocal range of notes is ove.note_range[channel].
 
-        # Also note that in case of the MLP that the output_vectors for each channel
-        # are an actual probability vector. They sum to one and are all positive
-        # values, including whether to play or not. In case of linear and ridge
-        # regression this is not the case.
-
-        # The output should be a numpy array of length ove.n_channels,
-        # containing the integers of the midi value.
-
-        for i, output_vector in enumerate(output_vectors):
-            midi_notes.append(random.choices(
-                [0] + list(range(self.ove.note_min[i], self.ove.note_max[i] + 1)), output_vector, k=1)[0])
+        midi_notes = random.choices(combinations, probability_combinations,k=1)[0]
 
         self.remember_state(midi_notes)
         return np.array(midi_notes)
@@ -197,3 +198,52 @@ class PostProcessorMC:
         vector = [x ** POWER_PROBABILITIES for x in vector]
 
         return vector
+
+    def combination_probability(self,combination):
+        prob = 1
+        for i in range(len(combination)):
+            for j in range(i+1,len(combination)):
+                if combination[i] == 0 or combination[j] == 0:
+                    continue
+                difference = abs(combination[i] - combination[j])
+                try:
+                    prob *= DIFFERENCES_ADAPTATION[difference]
+                except KeyError:
+                    #does not exist, so multiply by one
+                    pass
+        return prob
+
+                
+
+
+
+
+
+
+
+
+
+
+
+        # output_vectors is now a list of numpy arrays constructed from the
+        # raw output (y: OVE_OUT).
+        # Indexing the list will yield the probabilities (np.ndarray) of the
+        # notes for channel 0 to ove.n_channels.
+        # The probability at index 0 (ove.playing_idx) is the probability to
+        # play no note.
+        # ove.note_min[channel] will give the minimum note that can be played
+        # by that channel. This is represented by index 1 (ove.notes_idx) for
+        # that channel.
+        # E.g. the probability that channel (or voice) 2 plays the lowest note
+        # is output_vectors[2][1]. The midi value belonging to this probability
+        # is ove.note_min[2].
+        # The last value in the probability array will correspond to ove.note_max[channel]
+        # The vocal range of notes is ove.note_range[channel].
+
+        # Also note that in case of the MLP that the output_vectors for each channel
+        # are an actual probability vector. They sum to one and are all positive
+        # values, including whether to play or not. In case of linear and ridge
+        # regression this is not the case.
+
+        # The output should be a numpy array of length ove.n_channels,
+        # containing the integers of the midi value.

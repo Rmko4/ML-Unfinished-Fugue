@@ -29,7 +29,7 @@ if __name__ == "__main__":
     ALPHA = 46.8
     WINDOW_LENGTH_SC = 10
     WINDOW_LENGTH_MC = 38
-    N_NEW_SYMBOLS = 1000  # Roughly 20 seconds considering bpm 120 and 4 symbols per beat
+    N_NEW_SYMBOLS = 200  # Roughly 20 seconds considering bpm 120 and 4 symbols per beat
 
 
 class LinearRegressionSC(LinearRegression):
