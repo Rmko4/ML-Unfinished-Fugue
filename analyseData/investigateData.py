@@ -14,12 +14,18 @@ for i,line in enumerate(lines):
 
 for i in range(len(lines)):
     for j in range(4):
-        if (int)(lines[i][j]) != 0:
-            notes[j].append((int)(lines[i][j])+8)
-            mod12_notes[j].append( (((int)(lines[i][j]) +8 ) % 12) + 1)
-        else:
-            mod12_notes[j].append(0)
-            notes[j].append(0)
+        if len(lines[i]) == 1:
+            continue
+        
+        try:
+            if (int)(lines[i][j]) != 0:
+                notes[j].append((int)(lines[i][j])+8)
+                mod12_notes[j].append( (((int)(lines[i][j]) +8 ) % 12) + 1)
+            else:
+                mod12_notes[j].append(0)
+                notes[j].append(0)
+        except ValueError:
+            print(lines[i])
 
 f.close()
 
@@ -27,6 +33,39 @@ f.close()
 labels = [ 'C',"D_b","D","E_b","E","F", "G_b","G","A_b","A","B_b","B"]
 
 allInOne =  [*mod12_notes[0], *mod12_notes[1],*mod12_notes[2],*mod12_notes[3]]
+
+#length of notes distrubution
+length_frequencies = [0 for x in range(100)]
+i= 0 
+while i != len(allInOne):
+    if allInOne[i] == 0:
+        i+=1
+        continue
+    length = 1
+    while i+1 != len(allInOne) and allInOne[i] == allInOne[i+1]:
+        length +=1
+        i+=1
+    i+=1
+    length_frequencies[length] +=1
+
+
+plt.bar([ x / 16 for x in range(1,25)], length_frequencies[1:25] , width= 0.05) 
+plt.title("length of notes frequencies")
+plt.show()
+
+#note start position
+start_positions = [0 for x in range(16)]
+i= 0 
+for channel in notes:
+    for i in range(1,len(channel)):
+        if channel[i-1] != channel[i]:
+            start_positions[i % 16] +=1
+
+
+plt.bar([ x / 16 for x in range(16)], start_positions , width= 0.05) 
+plt.title("frequency that a node starts at a measure position")
+plt.show()
+
 
 #frequencies of specific notes
 frequency_counts = [0 for j in range(12)]
@@ -40,16 +79,22 @@ plt.show()
 
 #average length of each note
 total_length = [0 for j in range(12)]
-for i in range(len(allInOne)):
+i= 0 
+while i != len(allInOne):
     if allInOne[i] == 0:
+        i+=1
         continue
-    length = 0
+    length = 1
     while i+1 != len(allInOne) and allInOne[i] == allInOne[i+1]:
         length +=1
         i+=1
     total_length[allInOne[i]-1] += length
+    i+=1
+
+
+
 #divided by 16 since the sample frequency is 16 per bar
-average_length = [(total_length[i] / frequency_counts[i] ) / 16 for i in range(12)]
+average_length = [total_length[i] / frequency_counts[i]for i in range(12)]
 
 plt.bar(labels,average_length)
 plt.title("Average length for each note")
@@ -99,27 +144,30 @@ plt.title("Counts of differences between voices at same time")
 plt.bar([str(x) for x in range(38)],differences_counts[:38])
 plt.show()
 
-#Lengths of difference between voices:
-length_differences_counts = [0 for x in range(100)]
-differences_0_1 = [ abs(v1-v2) for v1,v2 in zip(notes[0],notes[1]) if v1 != 0 and v2 != 0 ]
-differences_0_2 = [ abs(v1-v2) for v1,v2 in zip(notes[0],notes[2]) if v1 != 0 and v2 != 0 ]
-differences_0_3 = [ abs(v1-v2) for v1,v2 in zip(notes[0],notes[3]) if v1 != 0 and v2 != 0 ]
-differences_1_2 = [ abs(v1-v2) for v1,v2 in zip(notes[1],notes[2]) if v1 != 0 and v2 != 0 ]
-differences_1_3 = [ abs(v1-v2) for v1,v2 in zip(notes[1],notes[3]) if v1 != 0 and v2 != 0 ]
-differences_2_3 = [ abs(v1-v2) for v1,v2 in zip(notes[2],notes[3]) if v1 != 0 and v2 != 0 ]
+if False:
+    #Lengths of difference between voices:
+    length_differences_counts = [0 for x in range(100)]
+    differences_0_1 = [ abs(v1-v2) for v1,v2 in zip(notes[0],notes[1]) if v1 != 0 and v2 != 0 ]
+    differences_0_2 = [ abs(v1-v2) for v1,v2 in zip(notes[0],notes[2]) if v1 != 0 and v2 != 0 ]
+    differences_0_3 = [ abs(v1-v2) for v1,v2 in zip(notes[0],notes[3]) if v1 != 0 and v2 != 0 ]
+    differences_1_2 = [ abs(v1-v2) for v1,v2 in zip(notes[1],notes[2]) if v1 != 0 and v2 != 0 ]
+    differences_1_3 = [ abs(v1-v2) for v1,v2 in zip(notes[1],notes[3]) if v1 != 0 and v2 != 0 ]
+    differences_2_3 = [ abs(v1-v2) for v1,v2 in zip(notes[2],notes[3]) if v1 != 0 and v2 != 0 ]
 
-all_differences_voices = [*differences_0_1, *differences_0_2,*differences_0_3, *differences_1_2,*differences_1_3, *differences_2_3 ]
-for i in range(len(all_differences_voices)-1):
-    length = 0
-    while  i +1 != len(all_differences_voices) and  all_differences_voices[i] == all_differences_voices[i+1]:
-        length +=1
+    all_differences_voices = [*differences_0_1, *differences_0_2,*differences_0_3, *differences_1_2,*differences_1_3, *differences_2_3 ]
+    i = 0
+    while i+1 < len(all_differences_voices) :
+        length = 1
+        while  i +1 != len(all_differences_voices) and  all_differences_voices[i] == all_differences_voices[i+1]:
+            length +=1
+            i+=1
+        length_differences_counts[all_differences_voices[i]] += length
         i+=1
-    length_differences_counts[all_differences_voices[i]] += length
 
 
-plt.title("Average of length of differences between voices")
-plt.bar([str(x) for x in range(38)],[ x / (y*16)  if y != 0 else 0 for x,y in zip(length_differences_counts,differences_counts) ][:38]) # since a measure is 16 
-plt.show()
+    plt.title("Average of length of differences between voices")
+    plt.bar([str(x) for x in range(38)],[ x / (y*16)  if y != 0 else 0 for x,y in zip(length_differences_counts,differences_counts) ][:38]) # since a measure is 16 
+    plt.show()
 
 
 

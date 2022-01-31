@@ -29,7 +29,7 @@ if __name__ == "__main__":
     ALPHA = 46.8
     WINDOW_LENGTH_SC = 10
     WINDOW_LENGTH_MC = 38
-    N_NEW_SYMBOLS = 160  # Roughly 20 seconds considering bpm 120 and 4 symbols per beat
+    N_NEW_SYMBOLS = 1000  # Roughly 20 seconds considering bpm 120 and 4 symbols per beat
 
 
 class LinearRegressionSC(LinearRegression):
@@ -173,7 +173,7 @@ def apply_ridge_regression_MC():
         inv_transform_fn=post_processing_func)
 
     pd.DataFrame(predicted_sequence).to_csv(
-        "postprocessing/probabilities.txt", header=None, index=None, sep='\t')
+        "analyseData/probabilities.txt", header=None, index=None, sep='\t')
     # read = pd.read_csv("postprocessing/probabilities.csv",
     #                    header=None).to_numpy()
 
