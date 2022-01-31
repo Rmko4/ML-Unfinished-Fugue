@@ -93,25 +93,26 @@ while i != len(allInOne):
 
 
 
-#divided by 16 since the sample frequency is 16 per bar
-average_length = [total_length[i] / frequency_counts[i]for i in range(12)]
+if False:
+    #divided by 16 since the sample frequency is 16 per bar
+    average_length = [0 if frequency_counts[i] == 0  else total_length[i] / frequency_counts[i] for i in range(12)]
 
-plt.bar(labels,average_length)
-plt.title("Average length for each note")
-plt.show()
+    plt.bar(labels,average_length)
+    plt.title("Average length for each note")
+    plt.show()
 
-#liklyhood a note starts a bar
-onlyBeginning = [ x for i, x in enumerate(allInOne) if i % 16 == 0]
-bar_starting_counts = [0 for j in range(12)]
-for note in onlyBeginning:
-    if note != 0:
-        bar_starting_counts[note-1] +=1
+    #liklyhood a note starts a bar
+    onlyBeginning = [ x for i, x in enumerate(allInOne) if i % 16 == 0]
+    bar_starting_counts = [0 for j in range(12)]
+    for note in onlyBeginning:
+        if note != 0:
+            bar_starting_counts[note-1] +=1
 
-normalized_bar_starting_counts = [bar_starting_counts[i] / frequency_counts[i]  for i in range(12)]
+    normalized_bar_starting_counts = [bar_starting_counts[i] / frequency_counts[i]  for i in range(12)]
 
-plt.title("Normalized frequency a measure starts with a note")
-plt.bar(labels,normalized_bar_starting_counts)
-plt.show()
+    plt.title("Normalized frequency a measure starts with a note")
+    plt.bar(labels,normalized_bar_starting_counts)
+    plt.show()
 
 #Differences compared to last note
 differences_counts = [0 for j in range(50)]

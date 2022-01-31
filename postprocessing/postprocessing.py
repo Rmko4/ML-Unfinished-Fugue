@@ -21,15 +21,15 @@ POWER_PROBABILITIES = 2
 MAX_LENGTH = 20
 
 #probability adaptation for possible length, missing key means probability of 0
-LENGTH_PROBABILITIES = {1:5,  2:0.3, 4:1, 6:8, 8:1.2, 10:3, 12: 2, 14:5, 16:0.5, 18:1, 20:1}
+LENGTH_PROBABILITIES = {1:2,  2:0.17, 4:0.8, 6:8, 8:1.2, 10:3, 12: 1.5, 14:7, 16:0.3, 18:1, 20:1}
 
 #probability adaptation for possible starting positions within the measure
 #missing key means that position does not allow new note
-MEASURE_POSITION_ADAPTATIONS = {0:1, 2:16, 3:14, 4:1.3, 6:3,7:10, 8:0.7, 10:6 ,11:15,12:1, 14:3 , 15:33}
+MEASURE_POSITION_ADAPTATIONS = {0:0.6, 2:22, 3:14, 4:1.3, 6:4,7:6, 8:0.6, 10:10 ,11:15,12:1, 14:5 , 15:33}
 
 #Differences voices probability adaptation
 #non existion keys equal 1
-DIFFERENCES_ADAPTATION = {0:0.4, 1:0.005, 2:0.7, 9: 4, 10: 0.8, 11:0.2, 12: 1.5, 13:0.2, 14:0.3, 16:2, 19:1.5, 21:1.5,22:0.7, 23:0.2, 25:0.2, 26:0.7, 27:3}
+DIFFERENCES_ADAPTATION = {0:0.4, 1:0.05, 2:0.7, 3:2.1, 4:3, 6:0.8,7:2.1, 9:2.2, 10: 0.8, 11:0.3, 12: 1.3, 13:0.2, 14:0.3,15:1.8, 16:1.8, 17:0.9, 18:0.8,19:1.8, 21:1.5,22:0.7, 23:0.2, 25:0.2, 26:0.7, 27:3}
 
 
 class PostProcessorMC:
@@ -50,8 +50,6 @@ class PostProcessorMC:
 
         # The duration for which the current note is playing (minimum 1).
         self.duration = np.empty((ove.n_channels))
-        # The current note that is playing.
-        self.current_note = np.empty((ove.n_channels))
         # The note prior to the current note.
         self.prev_note = np.empty((ove.n_channels))
 
@@ -66,8 +64,7 @@ class PostProcessorMC:
 
             # The previous note is still played at index last_change_idx
             self.prev_note[channel] = Y_prior[last_change_idx, channel]
-            # The last note that is played for that channel
-            self.current_note[channel] = Y_prior[-1, channel]
+
             # The new note starts at the following index, therefore the
             # duration is minus one.
             self.duration[channel] = Y_prior.shape[0] - last_change_idx - 1
@@ -114,47 +111,54 @@ class PostProcessorMC:
             if self.duration[i] == MAX_LENGTH:
                 #A different note must be played
                 output_vectors[i][index_last_note] = 0 
-                if sum(output_vectors[i]) == 0:
-                    #edge case in which no note is good - a random one is taken
-                    output_vectors[i] = [1 for x in output_vectors[i] ]
 
-                        #adapt length probabilities
             try:
                 output_vectors[i][index_last_note] *= MEASURE_POSITION_ADAPTATIONS[self.measure_idx]
             except KeyError:
                 #last note MUST be repeated
                 output_vectors[i] = [ 1 if x == index_last_note else 0 for x in range(len(output_vectors[i]))]
 
+            if sum(output_vectors[i]) == 0:
+                #edge case in which no note is good - a random one is taken
+                output_vectors[i] = [1 for x in output_vectors[i] ]
+            
+            #make to probability vecor again
+            output_vectors[i] = self.normalize_vector(output_vectors[i])
+
 
         combinations = []
         probability_combinations = []
 
-        #assumes up to 4 voices, ugly code I know...
+
+        #assumes 4 voices, ugly code I know...
+        #writes every possible combination 
         for i1  in range(len(output_vectors[0])):
-            if output_vectors[0][i1] < 0.001:
+            if output_vectors[0][i1] < 0.0005:
                 continue
             combination = [None,None,None,None]
             combination[0] = 0 if i1 == 0 else self.ove.note_min[0] + i1 -1
             for i2 in range(len(output_vectors[1])):
-                if output_vectors[1][i2] < 0.001:
+                if output_vectors[1][i2] < 0.0005:
                     continue
                 combination[1] = 0 if i2 == 0 else self.ove.note_min[1] + i2 -1
                 for i3 in range(len(output_vectors[2])):
-                    if output_vectors[2][i3] < 0.001:
+                    if output_vectors[2][i3] < 0.0005:
                         continue
                     combination[2] = 0 if i3 == 0 else self.ove.note_min[2] + i3 -1
                     for i4 in range(len(output_vectors[3])):
-                        if output_vectors[3][i4] < 0.001:
+                        if output_vectors[3][i4] < 0.0005:
                             continue
                         combination[3] = 0 if i4 == 0 else self.ove.note_min[3] + i4 -1
                         combinations.append(copy.deepcopy(combination))
                         probability_combinations.append(output_vectors[0][i1] * output_vectors[1][i2] * output_vectors[2][i3] * output_vectors[3][i4])
 
+
         for i in range(len(combinations)):
             prob = self.combination_probability(combinations[i])
             probability_combinations[i] *= prob
 
-
+        
+        #probability_combinations = self.normalize_vector(probability_combinations) not necessary for random.choice
 
         midi_notes = random.choices(combinations, probability_combinations,k=1)[0]
 
@@ -193,10 +197,9 @@ class PostProcessorMC:
     def output_to_probability_vector(self,vector):
         # remove sub zero numbers
         vector = [x if x > 0 else 0 for x in vector]
-        vector = self.normalize_vector(vector)  # Note: Maybe not necessary?
+        vector = self.normalize_vector(vector) 
         # take values to power to decrese entropy
         vector = [x ** POWER_PROBABILITIES for x in vector]
-
         return vector
 
     def combination_probability(self,combination):
