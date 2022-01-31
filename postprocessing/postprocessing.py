@@ -25,8 +25,13 @@ sys.path.append(os.path.join(sys.path[0], '..'))
 POWER_PROBABILITIES = 2
 #Maximum length possible
 MAX_LENGTH = 20
+
 #probability adaptation for possible length, missing key means probability of 0
-LENGTH_PROBABILITIES = {1:50,  2:2, 4: 3, 6:12, 8:3, 10:5, 12: 3, 14:8, 16:1, 18:1, 20:1}
+LENGTH_PROBABILITIES = {1:2,  2:0.4, 4: 0.7, 6:8, 8:1.2, 10:3, 12: 2, 14:5, 16:0.5, 18:1, 20:1}
+
+#probability adaptation for possible starting positions within the measure
+#missing key means that position does not allow new note
+MEASURE_POSITION_ADAPTATIONS = {0:1, 2:8, 3:10, 4:1.7, 6:3,7:10, 8:1, 10:6 ,11:10,12:1, 14:3 , 15:30}
 
 
 class PostProcessorMC:
@@ -114,6 +119,13 @@ class PostProcessorMC:
                 if sum(output_vectors[i]) == 0:
                     #edge case in which no note is good - a random one is taken
                     output_vectors[i] = [1 for x in output_vectors[i] ]
+
+                        #adapt length probabilities
+            try:
+                output_vectors[i][index_last_note] *= MEASURE_POSITION_ADAPTATIONS[self.measure_idx]
+            except KeyError:
+                #last note MUST be repeated
+                output_vectors[i] = [ 1 if x == index_last_note else 0 for x in range(len(output_vectors[i]))]
 
 
 
