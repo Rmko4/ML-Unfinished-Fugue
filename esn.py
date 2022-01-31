@@ -209,8 +209,8 @@ class ESN():
         Returns:
             Averged number of entries where real midi values == predicted midi values
         """
-        real_midi = ove.inv_transform_max_probability(np.array([y]))
-        pred_midi = ove.inv_transform_max_probability(np.array([y_pred]))
+        real_midi = ove.inv_transform_max_probability(y)
+        pred_midi = ove.inv_transform_max_probability(y_pred)
         return np.mean(real_midi == pred_midi)
 
     def _save_states(self, states):
@@ -323,7 +323,6 @@ class ESN():
         self._update(u, y0)
         x_n = self._add_bias(self.x.reshape((1, -1)))
         y_pred[0, :] = np.dot(self.W_out, x_n.T).reshape(-1)
-        acc += self._acc_score(y_val[0, :], y_pred[0, :], ove)
 
         for n in range(1, n_val_examples):
             u_n = u_val[n, :]
@@ -334,14 +333,10 @@ class ESN():
             x_n = self._add_bias(self.x.reshape((1, -1)))
             y_pred[n, :] = np.dot(self.W_out, x_n.T).reshape(-1)
 
-            # Compute accuracy
-            acc += self._acc_score(y_val[n, :], y_pred[n, :], ove)
-
+        acc = self._acc_score(y_val, y_pred, ove)
         # average summed accuracy over the number of validation examples
-        avg_acc = acc / (n_val_examples * 4)
-        self._log(f'Validation accuracy = {avg_acc}')
-        self._log(f'{self._acc_score(y_val, y_pred, ove)}')
-        return avg_acc
+        self._log(f'Validation accuracy = {acc}')
+        return acc
 
     def predict_sequence(self, u_drive, y_drive, l, ive, ove):
         """
