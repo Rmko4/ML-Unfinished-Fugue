@@ -29,8 +29,10 @@ MEASURE_POSITION_ADAPTATIONS = {0:0.6, 2:22, 3:14, 4:1.3, 6:4,7:6, 8:0.6, 10:10 
 
 #Differences voices probability adaptation
 #non existion keys equal 1
-DIFFERENCES_ADAPTATION = {0:0.4, 1:0.05, 2:0.7, 3:2.1, 4:3, 6:0.8,7:2.1, 9:2.2, 10: 0.8, 11:0.3, 12: 1.3, 13:0.2, 14:0.3,15:1.8, 16:1.8, 17:0.9, 18:0.8,19:1.8, 21:1.5,22:0.7, 23:0.2, 25:0.2, 26:0.7, 27:3}
+DIFFERENCES_ADAPTATION = {0:0.4, 1:0.05, 2:0.7, 3:2.1, 4:2.3,5:1.3, 6:0.9,7:2.1,8:1.6, 9:2.28, 10: 0.8, 11:0.3, 12: 1, 13:0.2, 14:0.3,15:2.1, 16:1.8, 17:0.9, 18:0.8,19:1.6, 21:1.5,22:0.7, 23:0.2,24:1.5, 25:0.2, 26:0.7, 27:2, 28:1.2}
 
+#Adapt difference in pitch compared to last note
+DIFFERENCES_LAST_ADAPTATIONS = {1:1.38, 2:1.2,3:0.6, 4:0.8, 5:0.8,7:1.2 ,8:0.8, 10:0.9, 11:7}
 
 class PostProcessorMC:
     def __init__(self, ove: OutputVectorEncoderMC, Y_prior: np.ndarray,
@@ -117,6 +119,16 @@ class PostProcessorMC:
             except KeyError:
                 #last note MUST be repeated
                 output_vectors[i] = [ 1 if x == index_last_note else 0 for x in range(len(output_vectors[i]))]
+
+            for difference in range(12):
+                try:
+                    adapt_prob = DIFFERENCES_LAST_ADAPTATIONS[difference]
+                except KeyError:
+                    continue
+                if index_last_note - difference > 0:
+                    output_vectors[i][index_last_note - difference ] *=adapt_prob
+                if index_last_note + difference < len(output_vectors[i]):
+                    output_vectors[i][index_last_note + difference ] *=adapt_prob                
 
             if sum(output_vectors[i]) == 0:
                 #edge case in which no note is good - a random one is taken
