@@ -15,7 +15,7 @@ class ESN():
                  starting_state='zeros', noise=0,
                  ridge_param=0, W_in_scaling=1.0, W_scaling=1.0,
                  W_fb_scaling=1.0, bias_scaling=1.0, activation_func='tanh',
-                 random_state=None, silent=True):
+                 ive=None, ove=None, random_state=None, silent=True):
         """
         Args:
             n_inputs: nr of input dimensions
@@ -31,6 +31,8 @@ class ESN():
             W_scaling: Scaling of the reservoir connections (single scalar)
             W_fb: Scaling of the feeback weights (single scalar)
             W_bias: Scalaing of the bias vector (single scalar)
+            ive: Input vector encoder
+            ove: Output vector encoder
             random_state: positive integer seed
             silent: Surpress messages
         """
@@ -59,6 +61,8 @@ class ESN():
         else:
             self.random_state_ = np.random.mtrand._rand
 
+        self.ive = ive
+        self.ove = ove
         self.silent = silent
         self.now = datetime.now()
 
@@ -198,7 +202,7 @@ class ESN():
         """
         return np.sqrt(np.mean((y_pred - y)**2))
 
-    def _acc_score(self, y, y_pred, ove):
+    def _acc_score(self, y, y_pred):
         """
         Method to compute accuracy score of how many entries in y and y_pred are equal and returns
         them averaged
@@ -209,8 +213,8 @@ class ESN():
         Returns:
             Averged number of entries where real midi values == predicted midi values
         """
-        real_midi = ove.inv_transform_max_probability(y)
-        pred_midi = ove.inv_transform_max_probability(y_pred)
+        real_midi = self.ove.inv_transform_max_probability(y)
+        pred_midi = self.ove.inv_transform_max_probability(y_pred)
         return np.mean(real_midi == pred_midi)
 
     def _save_states(self, states):
@@ -230,7 +234,7 @@ class ESN():
             y_teacher: np.array of dimension (N_training_samples x n_outputs) with teacher outputs
             save_states: Bool to specify wether generated states should be saved (determining washout time)
         Returns:
-            The mean square error on the training data
+            The accuracy and mean square error on the training data
         """
         self._log('Harvesting states...')
         states = self._harvest_states(u_train, y_teacher)
@@ -250,8 +254,9 @@ class ESN():
         X = self._add_bias(states)
         y_pred = np.dot(X, self.W_out.T)
         train_mse = self._compute_mse(y_teacher, y_pred)
-        self._log(f'Finished training! With train MSE: {train_mse}')
-        return train_mse
+        train_acc = self._acc_score(y_teacher, y_pred)
+        self._log(f'Finished training! With train acc: {train_acc:.3f} and MSE: {train_mse}')
+        return train_acc, train_mse
 
     def determine_washout_time(self, u_train, y_teacher, n_neurons, max_t):
         """
@@ -301,7 +306,7 @@ class ESN():
         sns.lineplot(data=df, x='time', y='values', hue='neuron_idx', style='run')
         plt.show()
 
-    def validate(self, u_val, y_val, ove):
+    def validate(self, u_val, y_val):
         """
         Method to test the prediction performance of the network by driving the network with input u_val
         and comparing the output of the network to the ground truth vectors y_val. It assumed that the validation
@@ -309,10 +314,10 @@ class ESN():
         Args:
             u_inputs: np.array of dimensions (N_samples x n_inputs)
             y_teacher: np.array of dimension (N_samples x n_outputs)
-            ove: Output vector encoder
         Returns:
             The prediction accuracy
         """
+        self._log('Validating...')
         acc = 0.0
         n_val_examples = u_val.shape[0]
         y_pred = np.empty((n_val_examples, self.n_outputs))
@@ -333,20 +338,17 @@ class ESN():
             x_n = self._add_bias(self.x.reshape((1, -1)))
             y_pred[n, :] = np.dot(self.W_out, x_n.T).reshape(-1)
 
-        acc = self._acc_score(y_val, y_pred, ove)
-        # average summed accuracy over the number of validation examples
-        self._log(f'Validation accuracy = {acc}')
+        acc = self._acc_score(y_val, y_pred)
+        self._log(f'Validation accuracy = {acc:.3f}')
         return acc
 
-    def predict_sequence(self, u_drive, y_drive, l, ive, ove):
+    def predict_sequence(self, u_drive, y_drive, l):
         """
         Method to predict a sequence
         Args:
             u_drive: Number of input sequences to drive (start) the networks
             y_drive: Teacher outputs to drive the network
             l: Length of the requested sequence
-            ive: Input vector encoder
-            ove: Output vector encoder
         Returns:
             A matrix of size l x output dimensions
         """
@@ -357,15 +359,15 @@ class ESN():
         _ = self._harvest_states(u_drive, y_drive)
 
         # Setup empty matrices
-        pred_sequence = np.empty((l, ove.n_channels))
+        pred_sequence = np.empty((l, self.ove.n_channels))
         u = np.empty((l+1, self.n_inputs))
         y = np.empty((l, self.n_outputs))
 
         # Get the last teacher vector and set it as y(n-1)
         y[0, :] = y_drive[-1, :]
         # Convert y(n-1) to u(n)
-        out = ove.inv_transform_max_probability(np.array([y[0, :]]))[0]
-        u[1, :] = ive.transform(np.array([out]))
+        out = self.ove.inv_transform_max_probability(np.array([y[0, :]]))[0]
+        u[1, :] = self.ive.transform(np.array([out]))
 
         for n in range(1, l):
             u_n = u[n, :]
@@ -376,8 +378,8 @@ class ESN():
             x_n = self._add_bias(self.x.reshape((1, -1)))
             y_n = np.dot(self.W_out, x_n.T)
             # Convert y(n) to a midi value, and back into u(n+1)
-            out = ove.inv_transform_max_probability(y_n.T)[0]
-            u[n+1, :] = ive.transform([out])
+            out = self.ove.inv_transform_max_probability(y_n.T)[0]
+            u[n+1, :] = self.ive.transform([out])
 
             # Save predicted midi values
             pred_sequence[n, :] = out
