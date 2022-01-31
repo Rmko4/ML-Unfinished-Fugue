@@ -7,14 +7,9 @@ from data_io.vector_encoders import OVE_OUT, InputVectorEncoderMC, OutputVectorE
 
 class SequencePredictorMixin():
     ''' 
-<<<<<<< HEAD
-    Mixin classbu
-    Requires (predictor) class that implements predict function.
-=======
     Mixin class
     Requires (predictor) class that implements predict function.
     Can be used to add sequential prediction functionality to a predictor class.
->>>>>>> main
     '''
 
     def __init__(self, ive: InputVectorEncoderMC,
@@ -23,9 +18,6 @@ class SequencePredictorMixin():
         self.ive = ive
         self.ove = ove
 
-<<<<<<< HEAD
-    def predict_sequence(self, X: np.ndarray, steps=64, inv_transform_fn: Callable[[OVE_OUT, np.ndarray], np.ndarray] = None) -> np.ndarray:
-=======
     def predict_sequence(self, X: np.ndarray, steps=64,
                          inv_transform_fn: Callable[[OVE_OUT, np.ndarray], np.ndarray] = None) \
             -> np.ndarray:
@@ -35,7 +27,6 @@ class SequencePredictorMixin():
         inv_tranform_fn: A callable that post processes the output probabilities of
         both flattened and non-flattened data and converts it to raw midi values.
         '''
->>>>>>> main
         mc_pred_seq = []
         u = self.ive.transform(X)
 
@@ -47,18 +38,11 @@ class SequencePredictorMixin():
             # Raw output
             y_pred = self.predict(u_sw)
 
-<<<<<<< HEAD
-            # Select note and duration on maximum probability
-            if inv_transform_fn:
-                out = inv_transform_fn(y_pred, self.ove)
-            else:
-=======
             if inv_transform_fn:
                 # Select notes by a procedure specified by the callable inv_transform_fn
                 out = inv_transform_fn(y_pred, self.ove)
             else:
                 # Select notes on maximum probability
->>>>>>> main
                 out = self.ove.inv_transform_max_probability(y_pred)[0]
 
             # Add the prediction to the sequence

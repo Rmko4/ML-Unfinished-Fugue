@@ -129,16 +129,13 @@ def apply_linear_regression_MC():
     predicted_sequence = lreg.predict_sequence(
         midi_raw[-WINDOW_LENGTH_MC:], steps=N_NEW_SYMBOLS, inv_transform_fn=post_processing_func)
 
-<<<<<<< HEAD
-=======
     pred_y = lreg.predict(u)
-    
+
     pd.DataFrame(predicted_sequence).to_csv(
         "postprocessing/probabilities.txt", header=None, index=None, sep='\t')
     # read = pd.read_csv("postprocessing/probabilities.csv",
     #                    header=None).to_numpy()
-    
->>>>>>> main
+
     full_sequence = np.concatenate((midi_raw, predicted_sequence), axis=0)
 
     output_file = OUTPUT_PATH / "pred_linear_mc.mid"
@@ -166,15 +163,11 @@ def apply_ridge_regression_MC():
 
     predicted_sequence = lreg.predict_sequence(
         midi_raw[-WINDOW_LENGTH_MC:], steps=N_NEW_SYMBOLS, inv_transform_fn=post_processing_func)
-<<<<<<< HEAD
-=======
-    
+
     pd.DataFrame(predicted_sequence).to_csv(
         "postprocessing/probabilities.txt", header=None, index=None, sep='\t')
     # read = pd.read_csv("postprocessing/probabilities.csv",
     #                    header=None).to_numpy()
-    
->>>>>>> main
 
     full_sequence = np.concatenate((midi_raw, predicted_sequence), axis=0)
 

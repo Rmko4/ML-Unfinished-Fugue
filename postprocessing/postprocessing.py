@@ -180,20 +180,18 @@ def post_process_output(y: OVE_OUT, ove: OutputVectorEncoderMC) -> np.ndarray:
             output_vectors.append(ove.output_vector_channel(y, channel)[0])
         else:
             output_vectors.append(y[channel][0])
-<<<<<<< HEAD
-=======
-    
-    for i,output_vector in enumerate(output_vectors):
-        midi_notes.append(random.choices( [0] + list(range(ove.note_min[i],ove.note_max[i] +1)), output_vector , k=1)[0])
->>>>>>> main
 
-    # output_vectors is now a list of numpy arrays constructed from the 
+    for i, output_vector in enumerate(output_vectors):
+        midi_notes.append(random.choices(
+            [0] + list(range(ove.note_min[i], ove.note_max[i] + 1)), output_vector, k=1)[0])
+
+    # output_vectors is now a list of numpy arrays constructed from the
     # raw output (y: OVE_OUT).
     # Indexing the list will yield the probabilities (np.ndarray) of the
     # notes for channel 0 to ove.n_channels.
     # The probability at index 0 (ove.playing_idx) is the probability to
     # play no note.
-    # ove.note_min[channel] will give the minimum note that can be played 
+    # ove.note_min[channel] will give the minimum note that can be played
     # by that channel. This is represented by index 1 (ove.notes_idx) for
     # that channel.
     # E.g. the probability that channel (or voice) 2 plays the lowest note
@@ -207,14 +205,8 @@ def post_process_output(y: OVE_OUT, ove: OutputVectorEncoderMC) -> np.ndarray:
     # values, including whether to play or not. In case of linear and ridge
     # regression this is not the case.
 
-
-
     # The output should be a numpy array of length ove.n_channels,
     # containing the integers of the midi value.
-<<<<<<< HEAD
-=======
-
->>>>>>> main
     return np.array(midi_notes)
-    
+
     # I hope that helps - Remco

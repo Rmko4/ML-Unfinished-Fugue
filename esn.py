@@ -168,7 +168,7 @@ class ESN():
         """
         return np.c_[x, np.ones(x.shape[0])]
 
-    def _ridge_regression(self, X, D):  # @TODO Fix documentation on dimensions (added 1)
+    def _ridge_regression(self, X, D):
         """
         Method to apply ridge regression
         W_out = (X'X + a^2I)^-1 X'D
@@ -176,7 +176,7 @@ class ESN():
             Matrix X of size N_training_samples x reservoir_size
             Matrix D of zie N_training_samples x n_outputs
         Returns:
-            Optimal weight matrix W_out of dimensions: n_outputs x (reservoir_size + 1)
+            Optimal weight matrix W_out of dimensions: n_outputs x (reservoir_size + 1 (bias))
         """
         # Add bias of constant 1 to X matrix (as a column)
         X = self._add_bias(X)
@@ -187,18 +187,31 @@ class ESN():
         # transpose matrix to fit dimensions n_outputs x reservoir_size
         return W_out.T
 
-    def _compute_mse(self, X, y):
+    def _compute_mse(self, y, y_pred):
         """
         Method to compute the mean square error using weight matrix W_out
         Args:
-            Matrix X of size N_training_samples x reservoir_size
+            Matrix y_ped of size N_training_samples x n_outputs
             Matrix y of size N_training_samples x n_outputs
         Returns:
             Mean square error
         """
-        X = self._add_bias(X)
-        predictions = np.dot(X, self.W_out.T)
-        return np.sqrt(np.mean((predictions - y)**2))
+        return np.sqrt(np.mean((y_pred - y)**2))
+
+    def _acc_score(self, y, y_pred, ove):
+        """
+        Method to compute accuracy score of how many entries in y and y_pred are equal and returns
+        them averaged
+        Args:
+            y: real vector y
+            y_pred: vector with predicted values
+            ove: Output vector encoder
+        Returns:
+            Averged number of entries where real midi values == predicted midi values
+        """
+        real_midi = ove.inv_transform_max_probability(np.array([y]))
+        pred_midi = ove.inv_transform_max_probability(np.array([y_pred]))
+        return np.mean(real_midi == pred_midi)
 
     def _save_states(self, states):
         """
@@ -234,7 +247,9 @@ class ESN():
         self.W_out = self._ridge_regression(states, y_teacher)
 
         # Compute training MSE
-        train_mse = self._compute_mse(states, y_teacher)
+        X = self._add_bias(states)
+        y_pred = np.dot(X, self.W_out.T)
+        train_mse = self._compute_mse(y_teacher, y_pred)
         self._log(f'Finished training! With train MSE: {train_mse}')
         return train_mse
 
@@ -286,6 +301,48 @@ class ESN():
         sns.lineplot(data=df, x='time', y='values', hue='neuron_idx', style='run')
         plt.show()
 
+    def validate(self, u_val, y_val, ove):
+        """
+        Method to test the prediction performance of the network by driving the network with input u_val
+        and comparing the output of the network to the ground truth vectors y_val. It assumed that the validation
+        set is the last X% of the training set (thus internal state x is not changed)
+        Args:
+            u_inputs: np.array of dimensions (N_samples x n_inputs)
+            y_teacher: np.array of dimension (N_samples x n_outputs)
+            ove: Output vector encoder
+        Returns:
+            The prediction accuracy
+        """
+        acc = 0.0
+        n_val_examples = u_val.shape[0]
+        y_pred = np.empty((n_val_examples, self.n_outputs))
+
+        # Drive the network once where y[n-1] does no exists
+        u = u_val[0, :]
+        y0 = np.zeros(self.n_outputs)
+        self._update(u, y0)
+        x_n = self._add_bias(self.x.reshape((1, -1)))
+        y_pred[0, :] = np.dot(self.W_out, x_n.T).reshape(-1)
+        acc += self._acc_score(y_val[0, :], y_pred[0, :], ove)
+
+        for n in range(1, n_val_examples):
+            u_n = u_val[n, :]
+            y_n0 = y_pred[n-1, :]
+            # Get x(n)
+            self._update(u_n, y_n0)
+            # Compute y(n)
+            x_n = self._add_bias(self.x.reshape((1, -1)))
+            y_pred[n, :] = np.dot(self.W_out, x_n.T).reshape(-1)
+
+            # Compute accuracy
+            acc += self._acc_score(y_val[n, :], y_pred[n, :], ove)
+
+        # average summed accuracy over the number of validation examples
+        avg_acc = acc / (n_val_examples * 4)
+        self._log(f'Validation accuracy = {avg_acc}')
+        self._log(f'{self._acc_score(y_val, y_pred, ove)}')
+        return avg_acc
+
     def predict_sequence(self, u_drive, y_drive, l, ive, ove):
         """
         Method to predict a sequence
@@ -293,24 +350,24 @@ class ESN():
             u_drive: Number of input sequences to drive (start) the networks
             y_drive: Teacher outputs to drive the network
             l: Length of the requested sequence
+            ive: Input vector encoder
+            ove: Output vector encoder
         Returns:
             A matrix of size l x output dimensions
         """
 
         # Add one to l to make up for loop starting at 1:l
         l += 1
-
         # drive the network
         _ = self._harvest_states(u_drive, y_drive)
 
         # Setup empty matrices
-        pred_sequence = np.empty((l, 4))  # @TODO fix this '4'
+        pred_sequence = np.empty((l, ove.n_channels))
         u = np.empty((l+1, self.n_inputs))
         y = np.empty((l, self.n_outputs))
 
         # Get the last teacher vector and set it as y(n-1)
         y[0, :] = y_drive[-1, :]
-        y_dims_test = y_drive[-1, :]
         # Convert y(n-1) to u(n)
         out = ove.inv_transform_max_probability(np.array([y[0, :]]))[0]
         u[1, :] = ive.transform(np.array([out]))
@@ -330,7 +387,7 @@ class ESN():
             # Save predicted midi values
             pred_sequence[n, :] = out
 
-        return pred_sequence[1:, :]
+        return pred_sequence[1:, :].astype(int)
 
     def save_model(self, ):
         """
