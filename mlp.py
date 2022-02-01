@@ -8,7 +8,7 @@ from data_io.midi_file import MODULATION, TEMPO, midi_tones_to_midi_file
 from data_io.model_data import convert_raw_to_training_data, load_data_raw
 from data_io.vector_encoders import InputVectorEncoderMC, OutputVectorEncoderMC
 from model_extensions.predict_sequence import SequencePredictorMixin
-from postprocessing.postprocessing import PostProcessorMC, post_process_output
+from postprocessing.postprocessing import PostProcessorMC
 
 if __name__ == "__main__":
     FILENAME_F = "F.txt"  # Requires tab delimited csv
