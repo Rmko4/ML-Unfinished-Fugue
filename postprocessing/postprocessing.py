@@ -21,11 +21,11 @@ POWER_PROBABILITIES = 2
 MAX_LENGTH = 20
 
 #probability adaptation for possible length, missing key means probability of 0
-LENGTH_PROBABILITIES = {1:2,  2:0.17, 4:0.75, 6:8, 8:1.2, 10:3, 12: 1.4, 14:7, 16:0.3, 18:1, 20:1}
+LENGTH_PROBABILITIES = {1:1.8,  2:0.23, 4:0.55, 6:5, 8:0.7, 10:2, 12: 0.3, 14:5, 16:0.015, 18:1, 20:1}
 
 #probability adaptation for possible starting positions within the measure
 #missing key means that position does not allow new note
-MEASURE_POSITION_ADAPTATIONS = {0:0.55, 2:23, 3:14, 4:1.3, 6:5,7:6, 8:0.6, 10:12 ,11:15,12:1, 14:7 , 15:33}
+MEASURE_POSITION_ADAPTATIONS = {0:0.55, 2:23, 3:14, 4:1.3, 6:5,7:6, 8:0.4, 10:12 ,11:15,12:1, 14:7 , 15:33}
 
 #Differences voices probability adaptation
 #non existion keys equal 1
