@@ -21,18 +21,24 @@ POWER_PROBABILITIES = 2
 MAX_LENGTH = 20
 
 #probability adaptation for possible length, missing key means probability of 0
-LENGTH_PROBABILITIES = {1:2,  2:0.17, 4:0.8, 6:8, 8:1.2, 10:3, 12: 1.5, 14:7, 16:0.3, 18:1, 20:1}
+LENGTH_PROBABILITIES = {1:2,  2:0.17, 4:0.75, 6:8, 8:1.2, 10:3, 12: 1.4, 14:7, 16:0.3, 18:1, 20:1}
 
 #probability adaptation for possible starting positions within the measure
 #missing key means that position does not allow new note
-MEASURE_POSITION_ADAPTATIONS = {0:0.6, 2:22, 3:14, 4:1.3, 6:4,7:6, 8:0.6, 10:10 ,11:15,12:1, 14:5 , 15:33}
+MEASURE_POSITION_ADAPTATIONS = {0:0.55, 2:23, 3:14, 4:1.3, 6:5,7:6, 8:0.6, 10:12 ,11:15,12:1, 14:7 , 15:33}
 
 #Differences voices probability adaptation
 #non existion keys equal 1
-DIFFERENCES_ADAPTATION = {0:0.4, 1:0.05, 2:0.7, 3:2.1, 4:2.3,5:1.3, 6:0.9,7:2.1,8:1.6, 9:2.28, 10: 0.8, 11:0.3, 12: 1, 13:0.2, 14:0.3,15:2.1, 16:1.8, 17:0.9, 18:0.8,19:1.6, 21:1.5,22:0.7, 23:0.2,24:1.5, 25:0.2, 26:0.7, 27:2, 28:1.2}
+DIFFERENCES_ADAPTATION = {0:0.4, 1:0.05, 2:0.7, 3:2.3, 4:2.4,5:1.3, 6:1,7:2.1,8:1.6, 9:2.28, 10: 0.8, 11:0.3, 12: 1, 13:0.2, 14:0.3,15:2.1, 16:1.8, 17:0.9, 18:0.9,19:1.5, 21:1.6,22:0.7, 23:0.2,24:1.5, 25:0.2, 26:0.7, 27:2, 28:1.4}
 
 #Adapt difference in pitch compared to last note
-DIFFERENCES_LAST_ADAPTATIONS = {1:1.38, 2:1.2,3:0.6, 4:0.8, 5:0.8,7:1.2 ,8:0.8, 10:0.9, 11:7}
+DIFFERENCES_LAST_ADAPTATIONS = {1:1.4, 2:1.2,3:0.6, 4:0.8, 5:0.8,7:1.2 ,8:0.8, 10:0.9, 11:7}
+
+#Adapt probabilities for each note (0 = C,1 = D_b,2 = D,3 = E_b,4 = E, 5 = f...,11 = B)
+NOTE_ADAPTATIONS = {0:0.9,1:0.95, 3:0.95,4:1,5:0.7, 6:0.96, 11:1.1 }
+
+
+
 
 class PostProcessorMC:
     def __init__(self, ove: OutputVectorEncoderMC, Y_prior: np.ndarray,
@@ -130,10 +136,19 @@ class PostProcessorMC:
                 if index_last_note + difference < len(output_vectors[i]):
                     output_vectors[i][index_last_note + difference ] *=adapt_prob                
 
-            if sum(output_vectors[i]) == 0:
-                #edge case in which no note is good - a random one is taken
-                output_vectors[i] = [1 for x in output_vectors[i] ]
+
+            for j in range(1,len(output_vectors[i])):
+                midi_mod_12 = (self.ove.note_min[i] + j +7 ) % 12
+                try:
+                    output_vectors[i][j] *= NOTE_ADAPTATIONS[midi_mod_12]
+                except KeyError:
+                    pass
             
+                if sum(output_vectors[i]) == 0:
+                    #edge case in which no note is good - a random one is taken
+                    print("sum was 0")
+                    output_vectors[i] = [1 for x in output_vectors[i] ]
+
             #make to probability vecor again
             output_vectors[i] = self.normalize_vector(output_vectors[i])
 
@@ -145,20 +160,23 @@ class PostProcessorMC:
         #assumes 4 voices, ugly code I know...
         #writes every possible combination 
         for i1  in range(len(output_vectors[0])):
-            if output_vectors[0][i1] < 0.0005:
+            if output_vectors[0][i1] < 0.002:
                 continue
             combination = [None,None,None,None]
             combination[0] = 0 if i1 == 0 else self.ove.note_min[0] + i1 -1
             for i2 in range(len(output_vectors[1])):
-                if output_vectors[1][i2] < 0.0005:
+                if output_vectors[1][i2] < 0.002:
                     continue
                 combination[1] = 0 if i2 == 0 else self.ove.note_min[1] + i2 -1
                 for i3 in range(len(output_vectors[2])):
-                    if output_vectors[2][i3] < 0.0005:
+                    if output_vectors[2][i3] < 0.002:
                         continue
                     combination[2] = 0 if i3 == 0 else self.ove.note_min[2] + i3 -1
+                    if output_vectors[0][i1] * output_vectors[1][i2] * output_vectors[2][i3] < 0.000005:
+                        #combination is already too unlikely - skip last loop for computational efficiency
+                        continue
                     for i4 in range(len(output_vectors[3])):
-                        if output_vectors[3][i4] < 0.0005:
+                        if output_vectors[3][i4] < 0.002:
                             continue
                         combination[3] = 0 if i4 == 0 else self.ove.note_min[3] + i4 -1
                         combinations.append(copy.deepcopy(combination))
@@ -170,7 +188,7 @@ class PostProcessorMC:
             probability_combinations[i] *= prob
 
         
-        #probability_combinations = self.normalize_vector(probability_combinations) not necessary for random.choice
+        #probability_combinations = self.normalize_vector(probability_combinations) # not necessary for random.choice
 
         midi_notes = random.choices(combinations, probability_combinations,k=1)[0]
 
