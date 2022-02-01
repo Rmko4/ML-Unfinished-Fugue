@@ -1,14 +1,5 @@
-from audioop import bias
+from data_io.model_data import convert_raw_to_training_data, load_data_raw
 from esn import ESN
-from data_io.midi_duration import (MIDI_COMPACT_SC,
-                                   midi_tones_file_to_midi_compact)
-from data_io.midi_file import MODULATION, TEMPO, midi_compact_to_midi_file, midi_tones_to_midi_file
-from data_io.model_data import convert_midi_compact_sc_to_training_data, convert_raw_to_training_data, load_data_raw
-from data_io.vector_encoders import (InputVectorEncoderMC,
-                                     InputVectorEncoderSC,
-                                     OutputVectorEncoderMC,
-                                     OutputVectorEncoderSC)
-
 
 midi_raw = load_data_raw('F.txt')[:-16, :]
 data, ove, ive = convert_raw_to_training_data(
@@ -25,7 +16,8 @@ esn = ESN(u.shape[1], y.shape[1], silent=False, reservoir_size=200, activation_f
           leaking_rate=0.95, washout_time=3, ive=ive, ove=ove)
 
 esn.fit(u_train, y_train)
-esn.validate(u_val, y_val)
+# esn.validate(u_val, y_val)
+esn.plot_readout_weights()
 # esn.determine_washout_time(u, y, 3, 10)
 # esn.save_model()
 # predicted_sequence = esn.predict_sequence(u, y, 100, ive, ove)

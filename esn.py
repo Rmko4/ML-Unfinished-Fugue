@@ -12,10 +12,10 @@ class ESN():
 
     def __init__(self, n_inputs, n_outputs, reservoir_size=200,
                  leaking_rate=1.0, spectral_radius=1.0, washout_time=0,
-                 starting_state='zeros', noise=0,
-                 ridge_param=0, W_in_scaling=1.0, W_scaling=1.0,
-                 W_fb_scaling=1.0, bias_scaling=1.0, activation_func='tanh',
-                 ive=None, ove=None, random_state=None, silent=True):
+                 starting_state='zeros', ridge_param=0,
+                 W_in_scaling=1.0, W_fb_scaling=0, bias_scaling=1.0,
+                 activation_func='tanh', ive=None, ove=None,
+                 random_state=None, silent=True):
         """
         Args:
             n_inputs: nr of input dimensions
@@ -45,10 +45,8 @@ class ESN():
         self.washout_time = washout_time
         self.leaking_rate = leaking_rate
         self.starting_state = starting_state
-        self.noise = noise
         self.ridge_param = ridge_param
         self.W_in_scaling = W_in_scaling
-        self.W_scaling = W_scaling
         self.W_fb_scaling = W_fb_scaling
         self.bias_scaling = bias_scaling
         self.activation_func = activation_func
@@ -91,9 +89,8 @@ class ESN():
         self.W_fb = self.random_state_.rand(self.reservoir_size, self.n_outputs) - 0.5
         self.bias = self.random_state_.rand(self.reservoir_size) - 0.5
 
-        # Scale all tensors
+        # Scale tensors
         self.W_in *= self.W_in_scaling
-        self.W *= self.W_scaling
         self.W_fb *= self.W_fb_scaling
         self.bias *= self.bias_scaling
 
@@ -403,6 +400,15 @@ class ESN():
         np.save(save_dir / 'W_fb', self.W_fb)
         np.save(save_dir / 'W_out', self.W_out)
         np.save(save_dir / 'bias', self.bias)
+
+    def plot_readout_weights(self):
+        """
+        Method that plots the weights in W_out as a histogram
+        """
+        w_out = self.W_out.flatten()
+        print(f'Max value weights: {np.max(w_out):.3f} Min value weights: {np.min(w_out):.3f}')
+        sns.histplot(data=w_out)
+        plt.show()
 
     def _log(self, msg):
         """
