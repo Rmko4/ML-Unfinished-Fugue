@@ -91,6 +91,7 @@ class PostProcessorMC:
         # Initially go to the next position in the measure or into a new measure
         self.forward_measure()
 
+
         midi_notes = []
         output_vectors = []
 
@@ -100,6 +101,11 @@ class PostProcessorMC:
                     self.ove.output_vector_channel(y, channel)[0])
             else:
                 output_vectors.append(y[channel][0])
+
+        #for i  in range(len(output_vectors)):
+        #        midi_notes.append( random.choices([0] + list(range(self.ove.note_min[i],self.ove.note_max[i]  +1)), output_vectors[i],k=1)[0])
+        #return midi_notes
+        
 
         for i  in range(len(output_vectors)):
             output_vectors[i] = self.output_to_probability_vector(output_vectors[i])

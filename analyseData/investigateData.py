@@ -49,8 +49,11 @@ while i != len(allInOne):
     length_frequencies[length] +=1
 
 
-plt.bar([ x / 16 for x in range(1,25)], length_frequencies[1:25] , width= 0.05) 
-plt.title("length of notes frequencies")
+plt.bar([ x for x in range(1,21)], length_frequencies[1:21] , width= 0.95) 
+plt.title("Frequency of note lengths \n Ridge Regression without post-processing")
+plt.xlabel("Length in number of time-steps")
+plt.ylabel("n Occurrences")
+plt.xticks([ x for x in range(1,21)],[ str(x) for x in range(1,21)])
 plt.show()
 
 #note start position
