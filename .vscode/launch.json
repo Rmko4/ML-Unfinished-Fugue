@@ -1,0 +1,34 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+
+        {
+            "name": "Python: test_lin_models",
+            "type": "python",
+            "request": "launch",
+            "program": "linear_models.py",
+            "console": "integratedTerminal"
+        },
+
+        {
+            "name": "Python: test_histogram",
+            "type": "python",
+            "request": "launch",
+            "program": "test_histogram.py",
+            "console": "integratedTerminal"
+        },
+
+
+        {
+            "name": "Python: test_esn",
+            "type": "python",
+            "request": "launch",
+            "program": "test_esn.py",
+            "console": "integratedTerminal"
+        }
+    ]
+}
