@@ -6,6 +6,7 @@
     "configurations": [
 
 
+
         {
             "name": "Python: test_lin_models",
             "type": "python",
@@ -19,6 +20,14 @@
             "type": "python",
             "request": "launch",
             "program": "test_histogram.py",
+            "console": "integratedTerminal"
+        },
+
+        {
+            "name": "Python: apply esn",
+            "type": "python",
+            "request": "launch",
+            "program": "apply_esn.py",
             "console": "integratedTerminal"
         },
 

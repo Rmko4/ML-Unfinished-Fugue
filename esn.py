@@ -342,17 +342,18 @@ class ESN():
         self._log(f'Validation accuracy = {acc:.3f}')
         return acc
 
-    def predict_sequence(self, u_drive, y_drive, l):
+    def predict_sequence(self, u_drive, y_drive, l, inv_transform_fn=None):
         """
         Method to predict a sequence
         Args:
             u_drive: Number of input sequences to drive (start) the networks
             y_drive: Teacher outputs to drive the network
             l: Length of the requested sequence
+            inv_transform_fn: Callable function that applies post postprocessing
         Returns:
             A matrix of size l x output dimensions
         """
-
+        self._log('Predicting sequence...')
         # Add one to l to make up for loop starting at 1:l
         l += 1
         # drive the network
@@ -378,7 +379,12 @@ class ESN():
             x_n = self._add_bias(self.x.reshape((1, -1)))
             y_n = np.dot(self.W_out, x_n.T)
             # Convert y(n) to a midi value, and back into u(n+1)
-            out = self.ove.inv_transform_max_probability(y_n.T)[0]
+            if inv_transform_fn:
+                # Select notes by a procedure specified by the callable inv_transform_fn
+                out = inv_transform_fn(y_n.T, self.ove)
+            else:
+                # Select notes on maximum probability
+                out = self.ove.inv_transform_max_probability(y_n.T)[0]
             u[n+1, :] = self.ive.transform([out])
 
             # Save predicted midi values
