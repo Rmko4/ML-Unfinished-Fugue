@@ -127,7 +127,10 @@ class ESN():
         Network is governed by update equation:
         x(n+1) = (1-leaking_rate)x(n) + leaking_rate*f(W_in*u(n+1) + W*x(n) + W_fb*y(n-1) + bias)
         """
-        pre_x = np.dot(self.W_in, u) + np.dot(self.W, self.x) + np.dot(self.W_fb, y) + self.bias
+        pre_x = np.dot(self.W_in, u)
+        pre_x += np.dot(self.W, self.x)
+        pre_x += np.dot(self.W_fb, y)
+        pre_x += self.bias
         pre_x = self.leaking_rate * self._activation_function(pre_x)
         new_x = (1 - self.leaking_rate)*self.x + pre_x
         self.x = new_x
