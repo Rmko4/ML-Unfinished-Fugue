@@ -149,12 +149,7 @@ class PostProcessorMC:
                     output_vectors[i][j] *= NOTE_ADAPTATIONS[midi_mod_12]
                 except KeyError:
                     pass
-            
-                if sum(output_vectors[i]) == 0:
-                    #edge case in which no note is good - a random one is taken
-                    print("sum was 0")
-                    output_vectors[i] = [1 for x in output_vectors[i] ]
-
+        
             #make to probability vecor again
             output_vectors[i] = self.normalize_vector(output_vectors[i])
 
@@ -224,6 +219,9 @@ class PostProcessorMC:
         sum = 0
         for x in vector:
             sum += x
+        if sum <= 0:
+            #edge case! Set to vector with equal values
+            return [1 / len(vector) for x in vector]
         return [x / sum for x in vector]
 
 
