@@ -3,10 +3,9 @@
 from unittest.util import _MAX_LENGTH
 from data_io.vector_encoders import OVE_OUT, OutputVectorEncoderMC
 import os
-import random
 import sys
 from typing import List
-
+import random
 import copy
 
 import numpy as np
@@ -14,28 +13,52 @@ import numpy as np
 # Quick fix to be able to import data_io module from the parent folder
 sys.path.append(os.path.join(sys.path[0], '..'))
 
+if False: #tuned for dummy model
+    # raise probabilities to this power to increse high probabilities and reduce smaller ones
+    POWER_PROBABILITIES = 2
+    #Maximum length possible
+    MAX_LENGTH = 20
 
-# raise probabilities to this power to increse high probabilities and reduce smaller ones
-POWER_PROBABILITIES = 2
-#Maximum length possible
-MAX_LENGTH = 20
+    #probability adaptation for possible length, missing key means probability of 0
+    LENGTH_PROBABILITIES = {1:3,  2:0.5, 4:3, 6:4, 8:1.2, 10:1, 12: 0.2, 14:5, 16:0.015, 18:1, 20:1}
 
-#probability adaptation for possible length, missing key means probability of 0
-LENGTH_PROBABILITIES = {1:1.8,  2:0.23, 4:0.55, 6:5, 8:0.7, 10:2, 12: 0.3, 14:5, 16:0.015, 18:1, 20:1}
+    #probability adaptation for possible starting positions within the measure
+    #missing key means that position does not allow new note
+    MEASURE_POSITION_ADAPTATIONS = {0:0.5, 2:70, 3:30, 4:1.3, 6:20,7:80, 8:0.6, 10:30 ,11:35,12:1.1, 14:25 , 15:110}
 
-#probability adaptation for possible starting positions within the measure
-#missing key means that position does not allow new note
-MEASURE_POSITION_ADAPTATIONS = {0:0.55, 2:23, 3:14, 4:1.3, 6:5,7:6, 8:0.4, 10:12 ,11:15,12:1, 14:7 , 15:33}
+    #Differences voices probability adaptation
+    #non existion keys equal 1
+    DIFFERENCES_ADAPTATION = {0:0.2, 1:0.08, 2:0.7, 3:2.2, 4:2.2,5:1, 6:0.5,7:2.1,8:1.4, 9:2.28, 10: 0.8, 11:0.15, 12: 1, 13:0.15, 14:1,15:2.6, 16:1.8, 17:0.9, 18:1,19:1.3, 20:1.1, 21:1.6,22:0.7, 23:0.2,24:1.3, 25:0.2, 26:0.7, 27:2, 28:1.4, 31:0.9, 32:0.8, 34:0.8, 35:0.6, 36:0.5}
 
-#Differences voices probability adaptation
-#non existion keys equal 1
-DIFFERENCES_ADAPTATION = {0:0.4, 1:0.05, 2:0.7, 3:2.3, 4:2.4,5:1.3, 6:1,7:2.1,8:1.6, 9:2.28, 10: 0.8, 11:0.3, 12: 1, 13:0.2, 14:0.3,15:2.1, 16:1.8, 17:0.9, 18:0.9,19:1.5, 21:1.6,22:0.7, 23:0.2,24:1.5, 25:0.2, 26:0.7, 27:2, 28:1.4}
+    #Adapt difference in pitch compared to last note
+    DIFFERENCES_LAST_ADAPTATIONS = {1:6, 2:4.8, 3:0.5, 4:0.3, 5:0.7, 6:0.3, 7:2.4 ,8:0.3, 9:0.5, 10:4, 11:2 }
 
-#Adapt difference in pitch compared to last note
-DIFFERENCES_LAST_ADAPTATIONS = {1:3.2, 2:1.3,3:0.6, 4:0.8, 5:0.5,7:3.3 ,8:0.7, 10:1, 11:9}
+    #Adapt probabilities for each note (0 = C,1 = D_b,2 = D,3 = E_b,4 = E, 5 = f...,11 = B)
+    #                   C      D_B      D        E_B       E      F        G_b      G      A_B     A      B_b       B
+    NOTE_ADAPTATIONS = {0:2.5, 1:1.3,   2:4,     3:1.5,      4:3,   5:2.7,   6:1,   7:3.4,   8:1,   9:4.1,  10:2.8,   11:1.3 }
 
-#Adapt probabilities for each note (0 = C,1 = D_b,2 = D,3 = E_b,4 = E, 5 = f...,11 = B)
-NOTE_ADAPTATIONS = {0:0.92,1:0.95, 3:0.96,4:1.4,5:0.7, 6:0.94, 10:0.9, 11:1.1 }
+if True: #tuned for ridge regression
+    # raise probabilities to this power to increse high probabilities and reduce smaller ones
+    POWER_PROBABILITIES = 2
+    #Maximum length possible
+    MAX_LENGTH = 20
+
+    #probability adaptation for possible length, missing key means probability of 0
+    LENGTH_PROBABILITIES = {1:1.8,  2:0.23, 4:0.55, 6:5, 8:0.7, 10:2, 12: 0.3, 14:5, 16:0.015, 18:1, 20:1}
+
+    #probability adaptation for possible starting positions within the measure
+    #missing key means that position does not allow new note
+    MEASURE_POSITION_ADAPTATIONS = {0:0.55, 2:23, 3:14, 4:1.3, 6:5,7:6, 8:0.4, 10:12 ,11:15,12:1, 14:7 , 15:33}
+
+    #Differences voices probability adaptation
+    #non existion keys equal 1
+    DIFFERENCES_ADAPTATION = {0:0.4, 1:0.05, 2:0.7, 3:2.3, 4:2.4,5:1.3, 6:1,7:2.1,8:1.6, 9:2.28, 10: 0.8, 11:0.3, 12: 1, 13:0.2, 14:0.3,15:2.1, 16:1.8, 17:0.9, 18:0.9,19:1.5, 21:1.6,22:0.7, 23:0.2,24:1.5, 25:0.2, 26:0.7, 27:2, 28:1.4}
+
+    #Adapt difference in pitch compared to last note
+    DIFFERENCES_LAST_ADAPTATIONS = {1:3.2, 2:1.3,3:0.6, 4:0.8, 5:0.5,7:3.3 ,8:0.7, 10:1, 11:9}
+
+    #Adapt probabilities for each note (0 = C,1 = D_b,2 = D,3 = E_b,4 = E, 5 = f...,11 = B)
+    NOTE_ADAPTATIONS = {0:0.92,1:0.95, 3:0.96,4:1.4,5:0.7, 6:0.94, 10:0.9, 11:1.1 }
 
 
 
@@ -153,7 +176,6 @@ class PostProcessorMC:
             #make to probability vecor again
             output_vectors[i] = self.normalize_vector(output_vectors[i])
 
-
         combinations = []
         probability_combinations = []
 
@@ -170,14 +192,14 @@ class PostProcessorMC:
                     continue
                 combination[1] = 0 if i2 == 0 else self.ove.note_min[1] + i2 -1
                 for i3 in range(len(output_vectors[2])):
-                    if output_vectors[2][i3] < 0.002:
+                    if output_vectors[2][i3] < 0.005:
                         continue
                     combination[2] = 0 if i3 == 0 else self.ove.note_min[2] + i3 -1
                     if output_vectors[0][i1] * output_vectors[1][i2] * output_vectors[2][i3] < 0.000005:
                         #combination is already too unlikely - skip last loop for computational efficiency
                         continue
                     for i4 in range(len(output_vectors[3])):
-                        if output_vectors[3][i4] < 0.002:
+                        if output_vectors[3][i4] < 0.005:
                             continue
                         combination[3] = 0 if i4 == 0 else self.ove.note_min[3] + i4 -1
                         combinations.append(copy.deepcopy(combination))
