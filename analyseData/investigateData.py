@@ -66,7 +66,11 @@ for channel in notes:
 
 
 plt.bar([ x / 16 for x in range(16)], start_positions , width= 0.05) 
-plt.title("frequency that a node starts at a measure position")
+plt.title("Frequency of note starting positions within measure \n Ridge Regression without post-processing")
+plt.xlabel("Measure position")
+plt.ylabel("n Occurrences")
+measure_positions = ["0","1/8", "1/4", "3/8", "1/2", "5/8", "3/4", "7/8" ]
+plt.xticks([ x / 16 for x in range(0,16,2)], measure_positions)
 plt.show()
 
 
@@ -77,7 +81,9 @@ for note in uniqueNotes:
     frequency_counts[note-1] +=1
 
 plt.bar(labels,frequency_counts)
-plt.title("Frequency for each note in all voices")
+plt.title("Frequency for each note in all voices \n Ridge Regression without post-processing")
+plt.xlabel("Pitch")
+plt.ylabel("n Occurrences")
 plt.show()
 
 #average length of each note
@@ -124,7 +130,9 @@ for i in range(len(allInOne) -1):
         differences_counts[allInOne[i] - allInOne[i+1]] +=1
 
 plt.bar([str(x) for x in range(1,14)],differences_counts[1:14])
-plt.title("Difference in pitch compared to last note")
+plt.title("Difference in pitch compared to last note \n Ridge Regression without post-processing")
+plt.xlabel("Pitch difference")
+plt.ylabel("n Occurrences")
 plt.show()
 
 #Difference notes of different voices:
@@ -144,8 +152,10 @@ for timepoint in range(len(mod12_notes[0])):
     if not breaks[2] and not breaks[3]:
         differences_counts[abs(notes[2][timepoint] - notes[3][timepoint])] +=1
 
-plt.title("Counts of differences between voices at same time")
+plt.title("Differences between voices at same time  \n Bach's 14th Fugue")
 plt.bar([str(x) for x in range(38)],differences_counts[:38])
+plt.xlabel("Pitch difference")
+plt.ylabel("n Occurrences")
 plt.show()
 
 if False:
