@@ -26,9 +26,9 @@ if __name__ == "__main__":
     MEASURE_LEN = 16 # Lenght of a measure in symbols
     POST_PROCESS = True
     CHANNEL = 0
-    ALPHA = 46.8
+    ALPHA = 2.6
     WINDOW_LENGTH_SC = 10
-    WINDOW_LENGTH_MC = 38
+    WINDOW_LENGTH_MC = 378
     N_NEW_SYMBOLS = 486  # Roughly 20 seconds considering bpm 120 and 4 symbols per beat
 
 

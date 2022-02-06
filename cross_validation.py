@@ -16,7 +16,7 @@ if __name__ == "__main__":
 # batch_size is power of two
 PARAM_DIST_LINEAR = {"window_length": np.linspace(1, 400, 400, dtype=int)}
 
-PARAM_DIST_RIDGE = {"alpha": loguniform(1e-2, 1e3),
+PARAM_DIST_RIDGE = {"alpha": loguniform(1e-5, 1e3),
                     "window_length": np.linspace(1, 400, 400, dtype=int)}
 
 PARAM_DIST_MLP = {"batch_size": [2**x for x in range(4, 9)],
@@ -55,8 +55,8 @@ def cross_validate(u: np.ndarray, y: np.ndarray,
             val_u = u_sw[val_i]
 
             if not isinstance(y, list):
-                train_y = y[train_i]
-                val_y = y[val_i]
+                train_y = y_sw[train_i]
+                val_y = y_sw[val_i]
             else:
                 train_y = [x[train_i] for x in y_sw]
                 val_y = [x[val_i] for x in y_sw]
@@ -66,7 +66,6 @@ def cross_validate(u: np.ndarray, y: np.ndarray,
                     validation_data=(val_u, val_y))
 
             pred_y = mdl.predict(val_u)
-
             score += scoring_func(val_y, pred_y)
 
         score /= n_splits
