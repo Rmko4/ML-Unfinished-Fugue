@@ -13,7 +13,7 @@ import numpy as np
 # Quick fix to be able to import data_io module from the parent folder
 sys.path.append(os.path.join(sys.path[0], '..'))
 
-if False: #tuned for dummy model
+if True: #tuned for dummy model
     # raise probabilities to this power to increse high probabilities and reduce smaller ones
     POWER_PROBABILITIES = 2
     #Maximum length possible
@@ -37,7 +37,7 @@ if False: #tuned for dummy model
     #                   C      D_B      D        E_B       E      F        G_b      G      A_B     A      B_b       B
     NOTE_ADAPTATIONS = {0:2.5, 1:1.3,   2:4,     3:1.5,      4:3,   5:2.7,   6:1,   7:3.4,   8:1,   9:4.1,  10:2.8,   11:1.3 }
 
-if True: #tuned for ridge regression
+if False: #tuned for ridge regression
     # raise probabilities to this power to increse high probabilities and reduce smaller ones
     POWER_PROBABILITIES = 2
     #Maximum length possible

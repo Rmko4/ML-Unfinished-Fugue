@@ -18,7 +18,7 @@ class DummyOutputVectorEncoder():
 
 
 OUTPUT_PATH = Path("output_midi_files")
-N_TIMESTEPS = 320
+N_TIMESTEPS = 1600
 ove = DummyOutputVectorEncoder()
 midi_raw = load_data_raw("F.txt")[:-16, :]
 
