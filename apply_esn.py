@@ -3,9 +3,12 @@ from data_io.model_data import convert_raw_to_training_data, load_data_raw
 from postprocessing.postprocessing import PostProcessorMC
 import pickle
 from esn import ESN
+import pandas as pd
+import numpy as np
 
+POST_PROCESSING = True
 
-FILE = 'models/esn/esn.pkl'
+FILE = 'models/esn/esn_tuned.pkl'
 MEASURE_LEN = 16  # Lenght of a measure in symbols
 
 RESERVOIR = 2000
@@ -32,14 +35,23 @@ def apply_esn():
     #             ive=ive, ove=ove, washout_time=WASHOUT_TIME, silent=False)
     # model.fit(u, y)
 
-    post_processor = PostProcessorMC(ove, midi_raw, measure_length=MEASURE_LEN)
+    post_processor = None
+    if POST_PROCESSING:
+        post_processor = PostProcessorMC(ove, midi_raw, measure_length=MEASURE_LEN)
 
     u_drive = u[-300:, :]
     y_drive = y[-300:, :]
-    predicted_sequence = model.predict_sequence(u_drive, y_drive, 600, post_processor)
+    predicted_sequence = model.predict_sequence(u_drive, y_drive, 486, post_processor)
+
+    pd.DataFrame(predicted_sequence).to_csv("analyseData/esn.txt", header=None, index=None, sep='\t')
 
     output_file = "output_midi_files/pred_esn_mc.mid"
     midi_tones_to_midi_file(predicted_sequence, str(output_file), tempo=TEMPO, modulation=MODULATION)
+
+    output_file = "output_midi_files/full_seq_plus_pred_esn_mc.mid"
+    full_sequence = midi_raw.copy()
+    song = np.concatenate((full_sequence, predicted_sequence))
+    midi_tones_to_midi_file(song, str(output_file), tempo=TEMPO, modulation=MODULATION)
 
     print('Done!')
 
