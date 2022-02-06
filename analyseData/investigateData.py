@@ -35,7 +35,7 @@ labels = [ 'C',"D_b","D","E_b","E","F", "G_b","G","A_b","A","B_b","B"]
 allInOne =  [*mod12_notes[0], *mod12_notes[1],*mod12_notes[2],*mod12_notes[3]]
 
 #length of notes distrubution
-length_frequencies = [0 for x in range(100)]
+length_frequencies = [0 for x in range(10000)]
 i= 0 
 while i != len(allInOne):
     if allInOne[i] == 0:

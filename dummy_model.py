@@ -18,7 +18,7 @@ class DummyOutputVectorEncoder():
 
 
 OUTPUT_PATH = Path("output_midi_files")
-N_TIMESTEPS = 1600
+N_TIMESTEPS = 486
 ove = DummyOutputVectorEncoder()
 midi_raw = load_data_raw("F.txt")[:-16, :]
 
@@ -40,3 +40,8 @@ pd.DataFrame(predicted_sequence).to_csv(
 output_file = OUTPUT_PATH / "dummy_model.mid"
 midi_tones_to_midi_file(np.array(predicted_sequence), str(output_file),
                         tempo=TEMPO, modulation=MODULATION)
+
+output_file = "output_midi_files/full_seq_plus_pred_dummy_model.mid"
+full_sequence = midi_raw.copy()
+song = np.concatenate((full_sequence, predicted_sequence))
+midi_tones_to_midi_file(song, str(output_file), tempo=TEMPO, modulation=MODULATION)

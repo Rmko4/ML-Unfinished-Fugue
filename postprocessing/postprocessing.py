@@ -39,8 +39,9 @@ if False:  # tuned for dummy model
     #                   C      D_B      D        E_B       E      F        G_b      G      A_B     A      B_b       B
     NOTE_ADAPTATIONS = {0: 2.5, 1: 1.3,   2: 4,     3: 1.5,      4: 3,
                         5: 2.7,   6: 1,   7: 3.4,   8: 1,   9: 4.1,  10: 2.8,   11: 1.3}
+    BASE_ADDITION = 0
 
-if False:  # tuned for ridge regression
+if True:  # tuned for ridge regression
     # raise probabilities to this power to increse high probabilities and reduce smaller ones
     POWER_PROBABILITIES = 2
     # Maximum length possible
@@ -64,8 +65,9 @@ if False:  # tuned for ridge regression
 
     # Adapt probabilities for each note (0 = C,1 = D_b,2 = D,3 = E_b,4 = E, 5 = f...,11 = B)
     NOTE_ADAPTATIONS = {0: 0.92, 1: 0.95, 3: 0.96, 4: 1.4, 5: 0.7, 6: 0.94, 10: 0.9, 11: 1.1}
+    BASE_ADDITION = 0
 
-if True:  # tuned for esn
+if False:  # tuned for esn
     # raise probabilities to this power to increse high probabilities and reduce smaller ones
     POWER_PROBABILITIES = 2
     # Maximum length possible
@@ -90,6 +92,34 @@ if True:  # tuned for esn
     # Adapt probabilities for each note (0 = C,1 = D_b,2 = D,3 = E_b,4 = E, 5 = f...,11 = B)
     NOTE_ADAPTATIONS = {0: 0.75, 1: 0.95, 2: 1.1, 3: 0.72, 4: 1.4,
                         5: 0.7, 6: 0.94, 7: 0.95, 8: 1.1, 9: 1.05, 10: 0.9, 11: 1.1}
+    BASE_ADDITION = 0
+
+if False:  # tuned for mlp
+    # raise probabilities to this power to increse high probabilities and reduce smaller ones
+    POWER_PROBABILITIES = 0.5
+    # Maximum length possible
+    MAX_LENGTH = 20
+
+    # probability adaptation for possible length, missing key means probability of 0
+    LENGTH_PROBABILITIES = {1: 2.6,  2: 0.4, 4: 1.8, 6: 5.1, 8: 0.9, 10: 2, 12: 0.6, 14: 6, 16: 0.017, 18: 1, 20: 1}
+
+    # probability adaptation for possible starting positions within the measure
+    # missing key means that position does not allow new note
+    MEASURE_POSITION_ADAPTATIONS = {0: 0.22, 2: 36, 3: 15, 4: 1.3,
+                                    6: 8, 7: 15, 8: 0.17, 10: 28, 11: 26, 12: 0.8, 14: 12, 15: 70}
+
+    # Differences voices probability adaptation
+    # non existion keys equal 1
+    DIFFERENCES_ADAPTATION = {0: 0.4, 1: 0.05, 2: 0.7, 3: 2.7, 4: 2.1, 5: 1.3, 6: 1, 7: 2.1, 8: 1.6, 9: 2.28, 10: 0.8, 11: 0.3, 12: 1,
+                              13: 0.2, 14: 0.3, 15: 2.3, 16: 1.7, 17: 0.9, 18: 0.8, 19: 1.4, 20: 0.8, 21: 1.6, 22: 0.7, 23: 0.2, 24: 1.4, 25: 0.2, 26: 0.7, 27: 2, 28: 1.2}
+
+    # Adapt difference in pitch compared to last note
+    DIFFERENCES_LAST_ADAPTATIONS = {1: 2.7, 2: 1.5, 3: 0.4, 4: 0.6, 5: 0.45, 7: 1.2, 8: 0.4, 9: 1.3, 10: 1.8, 11: 4}
+
+    # Adapt probabilities for each note (0 = C,1 = D_b,2 = D,3 = E_b,4 = E, 5 = f...,11 = B)
+    NOTE_ADAPTATIONS = {0: 0.8, 1: 0.75, 2: 1.1, 3: 0.72, 4: 1.4,
+                        5: 0.8, 6: 0.8, 7: 0.95, 8: 1.1, 9: 1.05, 10: 0.9, 11: 0.6}
+    BASE_ADDITION = 0
 
 
 class PostProcessorMC:
@@ -160,6 +190,10 @@ class PostProcessorMC:
         for i in range(len(output_vectors)):
             output_vectors[i] = self.output_to_probability_vector(output_vectors[i])
 
+            for j in range( len(output_vectors[i])):
+                output_vectors[i][j] += BASE_ADDITION
+
+
             if self.prev_note[i] == 0:
                 index_last_note = 0
             else:
@@ -171,7 +205,7 @@ class PostProcessorMC:
                 # last note MUST be repeated
                 output_vectors[i] = [1 if x == index_last_note else 0 for x in range(len(output_vectors[i]))]
 
-            if self.duration[i] == MAX_LENGTH:
+            if self.duration[i] >= MAX_LENGTH:
                 # A different note must be played
                 output_vectors[i][index_last_note] = 0
 
@@ -207,23 +241,23 @@ class PostProcessorMC:
         # assumes 4 voices, ugly code I know...
         # writes every possible combination
         for i1 in range(len(output_vectors[0])):
-            if output_vectors[0][i1] < 0.002:
+            if output_vectors[0][i1] < 0.01:
                 continue
             combination = [None, None, None, None]
             combination[0] = 0 if i1 == 0 else self.ove.note_min[0] + i1 - 1
             for i2 in range(len(output_vectors[1])):
-                if output_vectors[1][i2] < 0.002:
+                if output_vectors[1][i2] < 0.01:
                     continue
                 combination[1] = 0 if i2 == 0 else self.ove.note_min[1] + i2 - 1
                 for i3 in range(len(output_vectors[2])):
-                    if output_vectors[2][i3] < 0.005:
+                    if output_vectors[2][i3] < 0.01:
                         continue
                     combination[2] = 0 if i3 == 0 else self.ove.note_min[2] + i3 - 1
                     if output_vectors[0][i1] * output_vectors[1][i2] * output_vectors[2][i3] < 0.000005:
                         # combination is already too unlikely - skip last loop for computational efficiency
                         continue
                     for i4 in range(len(output_vectors[3])):
-                        if output_vectors[3][i4] < 0.005:
+                        if output_vectors[3][i4] < 0.01:
                             continue
                         combination[3] = 0 if i4 == 0 else self.ove.note_min[3] + i4 - 1
                         combinations.append(copy.deepcopy(combination))
@@ -294,25 +328,3 @@ class PostProcessorMC:
                     pass
         return prob
 
-        # output_vectors is now a list of numpy arrays constructed from the
-        # raw output (y: OVE_OUT).
-        # Indexing the list will yield the probabilities (np.ndarray) of the
-        # notes for channel 0 to ove.n_channels.
-        # The probability at index 0 (ove.playing_idx) is the probability to
-        # play no note.
-        # ove.note_min[channel] will give the minimum note that can be played
-        # by that channel. This is represented by index 1 (ove.notes_idx) for
-        # that channel.
-        # E.g. the probability that channel (or voice) 2 plays the lowest note
-        # is output_vectors[2][1]. The midi value belonging to this probability
-        # is ove.note_min[2].
-        # The last value in the probability array will correspond to ove.note_max[channel]
-        # The vocal range of notes is ove.note_range[channel].
-
-        # Also note that in case of the MLP that the output_vectors for each channel
-        # are an actual probability vector. They sum to one and are all positive
-        # values, including whether to play or not. In case of linear and ridge
-        # regression this is not the case.
-
-        # The output should be a numpy array of length ove.n_channels,
-        # containing the integers of the midi value.

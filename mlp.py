@@ -9,6 +9,7 @@ from data_io.model_data import convert_raw_to_training_data, load_data_raw
 from data_io.vector_encoders import InputVectorEncoderMC, OutputVectorEncoderMC
 from model_extensions.predict_sequence import SequencePredictorMixin
 from postprocessing.postprocessing import PostProcessorMC
+import pandas as pd
 
 if __name__ == "__main__":
     FILENAME_F = "F.txt"  # Requires tab delimited csv
@@ -20,7 +21,7 @@ if __name__ == "__main__":
     OMIT_REST = True
     CHANNEL = 0
     WINDOW_LENGTH_MC = 31
-    N_NEW_SYMBOLS = 160  # Roughly 20 seconds considering bpm 120 and 4 symbols per beat
+    N_NEW_SYMBOLS = 486  # Roughly 20 seconds considering bpm 120 and 4 symbols per beat
 
 
 class MetricPrintCallback(keras.callbacks.Callback):
@@ -114,12 +115,20 @@ def apply_mlp_MC():
         midi_raw[-WINDOW_LENGTH_MC:], steps=N_NEW_SYMBOLS,
         inv_transform_fn=post_processing_func)
 
+    pd.DataFrame(predicted_sequence).to_csv(
+        "analyseData/mlp_with_postprocessing.txt", header=None, index=None, sep='\t')
+
 
     full_sequence = np.concatenate((midi_raw, predicted_sequence), axis=0)
 
     output_file = OUTPUT_PATH / "pred_mlp_mc.mid"
     midi_tones_to_midi_file(predicted_sequence, str(output_file),
                             tempo=TEMPO, modulation=MODULATION)
+
+    output_file = "output_midi_files/full_seq_plus_pred_mlp_mc.mid"
+    full_sequence = midi_raw.copy()
+    song = np.concatenate((full_sequence, predicted_sequence))
+    midi_tones_to_midi_file(song, str(output_file), tempo=TEMPO, modulation=MODULATION)
 
 
 if __name__ == "__main__":

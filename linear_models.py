@@ -29,7 +29,7 @@ if __name__ == "__main__":
     ALPHA = 46.8
     WINDOW_LENGTH_SC = 10
     WINDOW_LENGTH_MC = 38
-    N_NEW_SYMBOLS = 1000  # Roughly 20 seconds considering bpm 120 and 4 symbols per beat
+    N_NEW_SYMBOLS = 486  # Roughly 20 seconds considering bpm 120 and 4 symbols per beat
 
 
 class LinearRegressionSC(LinearRegression):
@@ -182,6 +182,11 @@ def apply_ridge_regression_MC():
     output_file = OUTPUT_PATH / "pred_ridge_mc.mid"
     midi_tones_to_midi_file(predicted_sequence, str(output_file),
                             tempo=TEMPO, modulation=MODULATION)
+
+    output_file = "output_midi_files/full_seq_plus_linear_regression.mid"
+    full_sequence = midi_raw.copy()
+    song = np.concatenate((full_sequence, predicted_sequence))
+    midi_tones_to_midi_file(song, str(output_file), tempo=TEMPO, modulation=MODULATION)
 
 
 if __name__ == "__main__":
