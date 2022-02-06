@@ -48,7 +48,7 @@ if True:  # tuned for ridge regression
     MAX_LENGTH = 20
 
     # probability adaptation for possible length, missing key means probability of 0
-    LENGTH_PROBABILITIES = {1: 1.8,  2: 0.23, 4: 0.55, 6: 5, 8: 0.7, 10: 2, 12: 0.3, 14: 5, 16: 0.015, 18: 1, 20: 1}
+    LENGTH_PROBABILITIES = {1: 7,  2: 3, 4: 0.48, 6: 5, 8: 0.7, 10: 2, 12: 0.3, 14: 5, 16: 0.015, 18: 1, 20: 1}
 
     # probability adaptation for possible starting positions within the measure
     # missing key means that position does not allow new note
@@ -61,10 +61,10 @@ if True:  # tuned for ridge regression
                               13: 0.2, 14: 0.3, 15: 2.1, 16: 1.8, 17: 0.9, 18: 0.9, 19: 1.5, 21: 1.6, 22: 0.7, 23: 0.2, 24: 1.5, 25: 0.2, 26: 0.7, 27: 2, 28: 1.4}
 
     # Adapt difference in pitch compared to last note
-    DIFFERENCES_LAST_ADAPTATIONS = {1: 3.2, 2: 1.3, 3: 0.6, 4: 0.8, 5: 0.5, 7: 3.3, 8: 0.7, 10: 1, 11: 9}
+    DIFFERENCES_LAST_ADAPTATIONS = {1: 4.2, 2: 4.4, 3: 0.6, 4: 0.6, 5: 0.5,6:0.8, 7: 3.3, 8: 0.5, 10: 1, 11: 9}
 
     # Adapt probabilities for each note (0 = C,1 = D_b,2 = D,3 = E_b,4 = E, 5 = f...,11 = B)
-    NOTE_ADAPTATIONS = {0: 0.92, 1: 0.95, 3: 0.96, 4: 1.4, 5: 0.7, 6: 0.94, 10: 0.9, 11: 1.1}
+    NOTE_ADAPTATIONS = {0: 0.92, 1: 0.75, 3: 0.96, 4: 1.4, 5: 0.8, 6: 0.94, 10: 0.9, 11: 0.7}
     BASE_ADDITION = 0
 
 if False:  # tuned for esn
